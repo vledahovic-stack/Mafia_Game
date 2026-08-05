@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mafia Club</title>
+    <link href="https://fonts.googleapis.com/css2?family=Stardos+Stencil:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: radial-gradient(circle, #1e1e1e 0%, #121212 100%);
+        }
+        .card {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.7);
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        /* Эмблема с эффектом «крови» */
+        .brand-container {
+            margin-bottom: 25px;
+            padding: 10px 15px;
+            border: 2px solid #8b0000;
+            border-radius: 4px;
+            background-color: #140505;
+            box-shadow: 0 0 8px rgba(139, 0, 0, 0.4);
+        }
+        .mafia-title {
+            font-family: 'Stardos Stencil', cursive;
+            font-size: 36px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(180deg, #cccccc 40%, #8b0000 85%, #ff0000 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 16px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.3s;
+        }
+        .tab-btn:hover {
+            color: #ccc;
+        }
+        .tab-btn.active {
+            color: #e50914;
+            border-bottom-color: #e50914;
+            font-weight: bold;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #aaa;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background-color: #2b2b2b;
+            color: #fff;
+            font-size: 16px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #e50914;
+            box-shadow: 0 0 5px rgba(229, 9, 20, 0.5);
+        }
+        button.submit-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #e50914;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            text-transform: uppercase;
+            transition: background-color 0.3s;
+        }
+        button.submit-btn:hover {
+            background-color: #b80710;
+        }
+        .form-container {
+            display: none;
+        }
+        .form-container.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="brand-container">
+        <h1 class="mafia-title">Mafia Club</h1>
+    </div>
+    
+    <div class="tabs">
+        <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Вход</button>
+        <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Регистрация</button>
+    </div>
+
+    <!-- Форма входа -->
+    <div id="loginFormContainer" class="form-container active">
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="loginNickname">Никнейм</label>
+                <input type="text" id="loginNickname" placeholder="Введите ник..." required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Пароль</label>
+                <input type="password" id="loginPassword" placeholder="Введите пароль..." required>
+            </div>
+            <button type="submit" class="submit-btn">Войти</button>
+        </form>
+    </div>
+
+    <!-- Форма регистрации -->
+    <div id="registerFormContainer" class="form-container">
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="regNickname">Никнейм</label>
+                <input type="text" id="regNickname" placeholder="Придумайте ник..." required maxlength="15">
+            </div>
+            <div class="form-group">
+                <label for="regPassword">Пароль</label>
+                <input type="password" id="regPassword" placeholder="Придумайте пароль..." required>
+            </div>
+            <button type="submit" class="submit-btn">Зарегистрироваться</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.form-container').forEach(form => form.classList.remove('active'));
+
+        if (tab === 'login') {
+            document.getElementById('tabLogin').classList.add('active');
+            document.getElementById('loginFormContainer').classList.add('active');
+        } else {
+            document.getElementById('tabRegister').classList.add('active');
+            document.getElementById('registerFormContainer').classList.add('active');
+        }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const nickname = document.getElementById('loginNickname').value.trim();
+        if (nickname) {
+            localStorage.setItem('mafia_user', JSON.stringify({ nickname, action: 'login' }));
+            window.location.href = 'lobby.html';
+        }
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const nickname = document.getElementById('regNickname').value.trim();
+        if (nickname) {
+            localStorage.setItem('mafia_user', JSON.stringify({ nickname, action: 'register' }));
+            window.location.href = 'lobby.html';
+        }
+    });
+</script>
+
+</body>
+</html>
