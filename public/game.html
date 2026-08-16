@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Игра Мафия</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="app">
+        <!-- ЭКРАН 1: ЛОББИ -->
+        <div id="lobby-screen">
+		    <button id="leave-room-btn">Выйти из комнаты</button>
+            <h2>Комната ожидания</h2>
+            <div id="lobby-players-list"></div>
+            <button id="open-settings-btn" style="display: none; margin-bottom: 10px;">Настройки комнаты</button>
+            <button id="start-game-btn" style="display: none;">Начать игру</button>
+			
+			<div id="audio-controls">
+                <button id="toggle-mic">Выключить микрофон</button>
+                <button id="toggle-sound">Выключить звук</button>
+            </div>
+        </div>
+
+        <!-- ЭКРАН 2: ИГРОВОЙ СТОЛ -->
+        <div id="game-screen" style="display: none;">
+            <div id="game-header">
+                <span id="day-counter">День 1</span>
+                <span id="game-phase">Ожидание...</span>
+                <span id="phase-timer">00:00</span>
+            </div>
+
+            <div id="players-grid"></div>
+
+            <div id="game-controls">
+                <button id="end-game-btn" style="display: none;">Завершить игру</button>
+                <button id="skip-phase-btn" style="display: none;">Пропустить фазу <span id="skip-count"></span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно роли -->
+    <div id="role-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Ваша роль: <span id="modal-player-role"></span></h3>
+            <button id="modal-confirm-btn">Понятно</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно настроек комнаты -->
+    <div id="settings-modal" class="modal" style="display: none;">
+        <div class="modal-content settings-modal-content">
+            <span class="close" id="close-settings-btn">&times;</span>
+            <h3>Настройки комнаты</h3>
+            <form id="settings-form">
+                
+                <div class="settings-group">
+                    <h4>Таймеры</h4>
+                    <div class="setting-row">
+                        <label for="setting-generalMeeting">Общее собрание</label>
+                        <select id="setting-generalMeeting">
+                            <option value="0">Отключено</option>
+                            <option value="30">30 сек</option>
+                            <option value="60">60 сек</option>
+                            <option value="90">90 сек</option>
+                            <option value="120">120 сек</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label for="setting-individualSpeech">Индивидуальная речь</label>
+                        <select id="setting-individualSpeech">
+                            <option value="15">15 сек</option>
+                            <option value="30">30 сек</option>
+                            <option value="45">45 сек</option>
+                            <option value="60">60 сек</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h4>Правила и механики</h4>
+                    <div class="setting-row">
+                        <label for="setting-maxPlayers">Макс. игроков</label>
+                        <input type="number" id="setting-maxPlayers" min="4" max="16" value="10">
+                    </div>
+                    <div class="setting-row">
+                        <label for="setting-firstDayVoting">Голосование в 1-й день</label>
+                        <input type="checkbox" id="setting-firstDayVoting">
+                    </div>
+                    <div class="setting-row">
+                        <label for="setting-secretVoting">Тайное голосование</label>
+                        <input type="checkbox" id="setting-secretVoting">
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h4>Состав ролей</h4>
+                    <div class="setting-row">
+                        <label for="setting-extraMafia">Доп. Мафия</label>
+                        <input type="number" id="setting-extraMafia" min="0" max="3" value="0">
+                    </div>
+                    <div class="setting-row">
+                        <label for="setting-don">Дон</label>
+                        <input type="checkbox" id="setting-don">
+                    </div>
+                    <div class="setting-row">
+                        <label for="setting-sheriff">Шериф</label>
+                        <input type="checkbox" id="setting-sheriff">
+                    </div>
+                    <div class="setting-row">
+                        <label for="setting-doctor">Доктор</label>
+                        <input type="checkbox" id="setting-doctor">
+                    </div>
+                </div>
+
+                <button type="submit" style="margin-top: 15px;">Сохранить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Контейнер для аудиопотоков WebRTC -->
+    <div id="audio-container" style="display: none;"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"></script>
+    <script type="module" src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mafia Online - Главная</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+    <!-- Смешной баннер -->
+    <div class="funny-banner">
+        🍕 Правило дня: Мафия не стреляет, пока не доест пиццу!
+    </div>
+
+    <!-- Шапка сайта -->
+    <header>
+        <h1 class="dancing-title">
+            <span class="char c-1">М</span>
+            <span class="char c-2 has-hat">А</span>
+            <span class="char c-3 has-tie">Ф</span>
+            <span class="char c-4 has-glasses">И</span>
+            <span class="char c-5">Я</span>
+            <span style="width: 5px;"></span>
+            <span class="char c-6 has-cigar">К</span>
+            <span class="char c-7">Л</span>
+            <span class="char c-8">У</span>
+            <span class="char c-9 has-rose">Б</span>
+        </h1>
+        <div id="user-block">
+            <span id="user-name">Гость</span>
+            <button id="btn-login" onclick="openModal('modal-login')">Войти</button>
+            <button id="btn-register" onclick="openModal('modal-register')">Регистрация</button>
+            <button id="btn-logout" style="display: none;">Выйти</button>
+        </div>
+    </header>
+
+    <hr>
+
+    <!-- Навигация (Вкладки) -->
+    <nav>
+        <button class="active">🃏 Комнаты</button>
+        <button>🍕 Магазин</button>
+        <button>🏆 Статистика</button>
+        <button>⚙️ Настройки</button>
+    </nav>
+
+    <hr>
+
+    <!-- Основной контент: Работа с комнатами -->
+    <main>
+        <section>
+            <button class="btn-create-room">➕ Создать комнату</button>
+        </section>
+
+        <!-- Список игровых столов -->
+        <section>
+            <div class="section-title">
+                <span>Доступные комнаты</span>
+                <span style="font-size: 11px; color: #1dd1a1;"><span class="pulse-dot">●</span> <span id="online-counter">В онлайне: 0</span></span>
+            </div>
+            <ul id="rooms-list" class="room-list-mock">
+                <li class="room-card waiting">
+                    <div class="room-info">
+                        <div class="room-header">
+                            <span class="room-title">Мирные с пончиками</span>
+                            <span class="badge-status status-waiting">Ждём</span>
+                        </div>
+                        <div class="room-details">
+                            <span>👥 6/10</span>
+                            <span>🎭 Классика</span>
+                        </div>
+                    </div>
+                    <div class="room-actions">
+                        <button class="btn-join active-btn">Заскочить</button>
+                    </div>
+                </li>
+
+                <li class="room-card playing">
+                    <div class="room-info">
+                        <div class="room-header">
+                            <span class="room-title">Острые Козырьки</span>
+                            <span class="badge-status status-playing">Перестрелка</span>
+                        </div>
+                        <div class="room-details">
+                            <span>👥 10/10</span>
+                            <span>🩸 С Донами</span>
+                        </div>
+                    </div>
+                    <div class="room-actions">
+                        <button class="btn-join" disabled>Смотреть</button>
+                    </div>
+                </li>
+            </ul>
+        </section>
+    </main>
+</div>
+
+<!-- Модальное окно Входа -->
+<div id="modal-login" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('modal-login')">&times;</span>
+        <h3>🕵️ Предъявите документы</h3>
+        <form id="form-login">
+            <input type="text" placeholder="Логин" required>
+            <input type="password" placeholder="Пароль" required>
+            <button type="submit">Пройти контроль</button>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно Регистрации -->
+<div id="modal-register" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('modal-register')">&times;</span>
+        <h3>🤝 Вступить в сообщество</h3>
+        <form id="form-register">
+            <input type="text" placeholder="Придумайте логин" required>
+            <input type="password" placeholder="Придумайте пароль" required>
+            <button type="submit">Принести присягу</button>
+        </form>
+    </div>
+</div>
+
+<!-- Клиентский скрипт Socket.IO -->
+<script src="/socket.io/socket.io.js"></script>
+<!-- Скрипт для главной страницы -->
+<script src="index.js"></script>
+</body>
+</html>
