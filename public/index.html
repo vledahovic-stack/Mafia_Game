@@ -30,6 +30,8 @@
         </h1>
         <div id="user-block">
             <span id="user-name">Гость</span>
+            <span id="user-balance" style="display: none;">💰 <span id="balance-value">0</span></span>
+            <button id="btn-daily-bonus" style="display: none;" onclick="claimDailyBonus()">🎁 Бонус</button>
             <button id="btn-login" onclick="openModal('modal-login')">Войти</button>
             <button id="btn-register" onclick="openModal('modal-register')">Регистрация</button>
             <button id="btn-logout" style="display: none;">Выйти</button>
@@ -40,7 +42,7 @@
 
     <!-- Навигация (Вкладки) -->
     <nav>
-        <button class="active">🃏 Комнаты</button>
+        <button onclick="window.location.href='profile.html'">Профиль</button>
         <button>🍕 Магазин</button>
         <button>🏆 Статистика</button>
         <button>⚙️ Настройки</button>
@@ -51,7 +53,7 @@
     <!-- Основной контент: Работа с комнатами -->
     <main>
         <section>
-            <button class="btn-create-room">➕ Создать комнату</button>
+            <button class="btn-create-room">➕ Собрать свою банду</button>
         </section>
 
         <!-- Список игровых столов -->

@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mafia Online - Комедийный режим</title>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #0b0c16;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 107, 107, 0.22) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(29, 209, 161, 0.18) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(84, 160, 255, 0.15) 0%, transparent 60%);
+            background-attachment: fixed;
+            color: #f1f5f9;
+            padding: 8px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 480px;
+            background: rgba(30, 32, 56, 0.92);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 107, 107, 0.15);
+            padding: 14px;
+            border: 3px solid #434978;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .funny-banner {
+            background: linear-gradient(135deg, #ffd166 0%, #f77f00 100%);
+            color: #000;
+            font-size: 11px;
+            font-weight: 800;
+            text-align: center;
+            padding: 4px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        hr {
+            border: none;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #ff6b6b, transparent);
+            margin: 10px 0;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .dancing-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding-top: 6px;
+        }
+
+        .dancing-title .char {
+            display: inline-block;
+            position: relative;
+            font-size: 20px;
+            font-weight: 900;
+            color: #ff4d4d;
+            text-shadow: 0 0 10px rgba(255, 77, 77, 0.6);
+            transform: rotate(var(--r, 0deg));
+        }
+
+        .c-1 { --r: -8deg; }
+        .c-2 { --r: 6deg;  }
+        .c-3 { --r: -5deg; }
+        .c-4 { --r: 8deg;  }
+        .c-5 { --r: -7deg; }
+        .c-6 { --r: 5deg;  }
+        .c-7 { --r: -6deg; }
+        .c-8 { --r: 7deg;  }
+        .c-9 { --r: -8deg; }
+
+        .has-hat::before {
+            content: '🎩';
+            position: absolute;
+            top: -13px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.6) rotate(-12deg);
+            pointer-events: none;
+        }
+
+        .has-tie::after {
+            content: '👔';
+            position: absolute;
+            bottom: -11px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.55);
+            pointer-events: none;
+        }
+
+        .has-glasses::before {
+            content: '🕶️';
+            position: absolute;
+            top: -1px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.55);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .has-cigar::after {
+            content: '🚬';
+            position: absolute;
+            bottom: -1px;
+            right: -8px;
+            transform: scale(0.5) rotate(-20deg);
+            pointer-events: none;
+        }
+
+        .has-rose::before {
+            content: '🌹';
+            position: absolute;
+            top: -10px;
+            right: -6px;
+            transform: scale(0.5) rotate(15deg);
+            pointer-events: none;
+        }
+
+        #user-block {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #user-name {
+            font-size: 12px;
+            font-weight: 800;
+            color: #1a1b2f;
+            background: #ffd166;
+            padding: 4px 8px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        button {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 800;
+            font-size: 12px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        button:active { transform: scale(0.95) !important; }
+
+        #btn-login {
+            background: linear-gradient(180deg, #ff6b6b 0%, #ee5253 100%);
+            color: #ffffff;
+            box-shadow: 0 3px 6px rgba(238, 82, 83, 0.4);
+        }
+        #btn-login:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 6px 14px rgba(238, 82, 83, 0.6);
+        }
+
+        #btn-register {
+            background-color: #34385a;
+            color: #cbd5e0;
+            border: 1px solid #4a507a;
+        }
+        #btn-register:hover {
+            transform: translateY(-2px) scale(1.03);
+            border-color: #718096;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+        }
+
+        nav {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+        nav::-webkit-scrollbar { display: none; }
+
+        nav button {
+            background-color: #34385a;
+            color: #a0aec0;
+            border: 1px solid #4a507a;
+            padding: 8px 12px;
+            border-radius: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-size: 12px;
+        }
+        nav button:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+            color: #ffffff;
+        }
+
+        nav button.active {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff9f43 100%);
+            color: #ffffff;
+            border-color: #ff6b6b;
+            box-shadow: 0 3px 8px rgba(255, 107, 107, 0.4);
+        }
+        nav button.active:hover {
+            box-shadow: 0 6px 16px rgba(255, 107, 107, 0.6);
+        }
+
+        .btn-create-room {
+            width: 100%;
+            background: linear-gradient(180deg, #10ac84 0%, #1dd1a1 100%);
+            color: white;
+            padding: 11px;
+            font-size: 14px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            animation: pulse-button 2.5s infinite ease-in-out;
+        }
+        .btn-create-room:hover {
+            transform: translateY(-2px) scale(1.015);
+        }
+
+        @keyframes pulse-button {
+            0% { box-shadow: 0 2px 6px rgba(29, 209, 161, 0.2); }
+            50% { box-shadow: 0 4px 12px rgba(29, 209, 161, 0.4); }
+            100% { box-shadow: 0 2px 6px rgba(29, 209, 161, 0.2); }
+        }
+
+        .section-title {
+            font-size: 13px;
+            margin: 12px 0;
+            color: #ffd166;
+            font-weight: 900;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pulse-dot {
+            display: inline-block;
+            color: #1dd1a1;
+            animation: pulse-strong 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-strong {
+            0% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 2px #1dd1a1); }
+            50% { opacity: 0.4; transform: scale(1.6); filter: drop-shadow(0 0 8px #1dd1a1); }
+            100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 2px #1dd1a1); }
+        }
+
+        ul.room-list-mock {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .room-card {
+            background: #282a45;
+            border: 2px solid #434978;
+            border-radius: 14px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+            position: relative;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .room-card:hover {
+            transform: translateY(-2px) scale(1.015);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(84, 160, 255, 0.25);
+        }
+
+        .room-card.waiting { border-color: #1dd1a1; }
+        .room-card.playing { border-color: #ff6b6b; }
+        .room-card.locked { border-color: #ffd166; }
+
+        .room-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .room-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .room-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        /* Эффект штампа архива / досье */
+        .badge-status {
+            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: transparent;
+            border: 2px solid;
+            display: inline-block;
+        }
+
+        .status-waiting {
+            color: #1dd1a1;
+            border-color: #1dd1a1;
+            transform: rotate(-4deg);
+            box-shadow: 0 0 4px rgba(29, 209, 161, 0.3);
+        }
+
+        .status-playing {
+            color: #ff6b6b;
+            border-color: #ff6b6b;
+            transform: rotate(5deg);
+            box-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
+        }
+
+        .status-secret {
+            color: #ffd166;
+            border-color: #ffd166;
+            transform: rotate(-3deg);
+            box-shadow: 0 0 4px rgba(255, 209, 102, 0.3);
+        }
+
+        .room-details {
+            font-size: 11px;
+            color: #cbd5e0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-join {
+            background-color: #34385a;
+            color: #f1f5f9;
+            border: 1px solid #4a507a;
+            padding: 8px 14px;
+            font-size: 12px;
+            border-radius: 8px;
+        }
+
+        .btn-join.active-btn {
+            background: linear-gradient(180deg, #54a0ff 0%, #2e86de 100%);
+            color: #fff;
+            border: none;
+            box-shadow: 0 3px 8px rgba(46, 134, 222, 0.4);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(11, 12, 22, 0.85);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background-color: #282a45;
+            padding: 20px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 320px;
+            border: 2px solid #ff6b6b;
+            position: relative;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 12px;
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .modal-content form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .modal-content input {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #434978;
+            background-color: #1a1b2f;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .close {
+            position: absolute;
+            top: 10px; right: 12px;
+            font-size: 20px;
+            color: #a0aec0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="funny-banner">
+        🍕 Правило дня: Мафия не стреляет, пока не доест пиццу!
+    </div>
+
+    <header>
+        <h1 class="dancing-title">
+            <span class="char c-1">М</span>
+            <span class="char c-2 has-hat">А</span>
+            <span class="char c-3 has-tie">Ф</span>
+            <span class="char c-4 has-glasses">И</span>
+            <span class="char c-5">Я</span>
+            <span style="width: 5px;"></span>
+            <span class="char c-6 has-cigar">К</span>
+            <span class="char c-7">Л</span>
+            <span class="char c-8">У</span>
+            <span class="char c-9 has-rose">Б</span>
+        </h1>
+        <div id="user-block">
+            <span id="user-name">🕵️ Детектив</span>
+            <button id="btn-login" onclick="openModal('modal-login')">Вход</button>
+            <button id="btn-register" onclick="openModal('modal-register')">Рег.</button>
+        </div>
+    </header>
+
+    <hr>
+
+    <nav>
+        <button class="active">🃏 Столы</button>
+        <button>🍕 Лавка</button>
+        <button>🏆 Медали</button>
+        <button>🥸 Маски</button>
+        <button>⚙️ Настройки</button>
+    </nav>
+
+    <hr>
+
+    <main>
+        <section>
+            <button class="btn-create-room">➕ Собрать свою банду</button>
+        </section>
+
+        <section>
+            <div class="section-title">
+                <span>Игровые столы</span>
+                <span style="font-size: 11px; color: #1dd1a1;"><span class="pulse-dot">●</span> 4 стола шумят</span>
+            </div>
+            
+            <ul class="room-list-mock">
+                <li class="room-card waiting">
+                    <div class="room-info">
+                        <div class="room-header">
+                            <span class="room-title">Мирные с пончиками</span>
+                            <span class="badge-status status-waiting">Ждём</span>
+                        </div>
+                        <div class="room-details">
+                            <span>👥 6/10</span>
+                            <span>🎭 Классика</span>
+                        </div>
+                    </div>
+                    <div class="room-actions">
+                        <button class="btn-join active-btn">Заскочить</button>
+                    </div>
+                </li>
+
+                <li class="room-card playing">
+                    <div class="room-info">
+                        <div class="room-header">
+                            <span class="room-title">Острые Козырьки</span>
+                            <span class="badge-status status-playing">Перестрелка</span>
+                        </div>
+                        <div class="room-details">
+                            <span>👥 10/10</span>
+                            <span>🩸 С Донами</span>
+                        </div>
+                    </div>
+                    <div class="room-actions">
+                        <button class="btn-join" disabled>Смотреть</button>
+                    </div>
+                </li>
+
+                <li class="room-card locked">
+                    <div class="room-info">
+                        <div class="room-header">
+                            <span class="room-title">Засекреченный заговор 🔒</span>
+                            <span class="badge-status status-secret">Секрет</span>
+                        </div>
+                        <div class="room-details">
+                            <span>👥 3/6</span>
+                            <span>🔰 Новички</span>
+                        </div>
+                    </div>
+                    <div class="room-actions">
+                        <button class="btn-join active-btn">Пароль</button>
+                    </div>
+                </li>
+
+                <li class="room-card waiting">
+                    <div class="room-info">
+                        <div class="room-header">
+                            <span class="room-title">Шериф потерял очки</span>
+                            <span class="badge-status status-waiting">Ждём</span>
+                        </div>
+                        <div class="room-details">
+                            <span>👥 9/10</span>
+                            <span>🏆 Рейтинг</span>
+                        </div>
+                    </div>
+                    <div class="room-actions">
+                        <button class="btn-join active-btn">Заскочить</button>
+                    </div>
+                </li>
+            </ul>
+        </section>
+    </main>
+</div>
+
+<div id="modal-login" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('modal-login')">&times;</span>
+        <h3>Предъявите документы! 🕵️</h3>
+        <form id="form-login" onsubmit="event.preventDefault();">
+            <input type="text" placeholder="Твой псевдоним" required>
+            <input type="password" placeholder="Секретный шифр" required>
+            <button type="submit" class="btn-join active-btn" style="padding: 10px; width: 100%;">Войти</button>
+        </form>
+    </div>
+</div>
+
+<div id="modal-register" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('modal-register')">&times;</span>
+        <h3>Вступить в семейство 🎩</h3>
+        <form id="form-register" onsubmit="event.preventDefault();">
+            <input type="text" placeholder="Придумай псевдоним" required>
+            <input type="password" placeholder="Придумай шифр" required>
+            <button type="submit" class="btn-join active-btn" style="padding: 10px; width: 100%;">Готово!</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(id) {
+        document.getElementById(id).style.display = 'flex';
+    }
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+</script>
+
+</body>
+</html>

@@ -1,27 +1,6 @@
-const { ROLES, generateRolePool } = require('./rolesConfig');
+const { ROLES, assignRoles, checkWinCondition } = require('./rolesConfig');
 
-// Логика распределения ролей и фаз игры
-
-function assignRoles(room) {
-    const players = room.players;
-    const totalPlayers = players.length;
-
-    // Генерация пула ролей на основе количества игроков
-    const rolePool = generateRolePool(totalPlayers, room.settings);
-
-    // Перемешивание ролей
-    rolePool.sort(() => Math.random() - 0.5);
-
-    room.players.forEach((player, index) => {
-        const roleName = rolePool[index];
-        player.role = roleName;
-        player.isAlive = true;
-
-        // Привязываем команду из конфигурации роли
-        const roleObj = Object.values(ROLES).find(r => r.name === roleName);
-        player.team = roleObj ? roleObj.team : 'Мирные';
-    });
-}
+// Логика фаз игры и общего игрового процесса
 
 function setPhase(room, phase, io) {
     let phaseText = '';
@@ -45,14 +24,13 @@ function setPhase(room, phase, io) {
         skipVotes: 0,
         requiredVotes: Math.ceil(room.players.filter(p => p.isAlive !== false).length * 0.7),
         players: room.players,
-		gameLog: room.gameLog || [] // <-- Добавь эту строчку
+        gameLog: room.gameLog || []
     };
 
     if (room.timer) {
         clearInterval(room.timer);
     }
 
-    // Если общее собрание отключено (0 сек) — сразу к речам
     if (phase === 1 && generalMeetingTime === 0) {
         startIndividualSpeechPhase(room, io);
         return;
@@ -95,8 +73,8 @@ function startIndividualSpeechPhase(room, io) {
     room.gameState.currentSpeaker = queue[0].username || queue[0].name;
     room.gameState.timeLeft = speechDuration;
     room.gameState.speechDuration = speechDuration;
-    room.gameState.nominatedCandidates = []; // Список уникальных кандидатов
-    room.gameState.speakerNominations = {}; // Персональные номинации: {имя_спикера: имя_кандидата}
+    room.gameState.nominatedCandidates = [];
+    room.gameState.speakerNominations = {};
 
     notifySpeakerStart(room, io, room.gameState.currentSpeaker);
     runSpeechTimer(room, io);
@@ -136,7 +114,6 @@ function nextSpeaker(room, io) {
     } else {
         clearInterval(room.timer);
         
-        // Проверка правил 1-го дня из настроек
         const isFirstDay = room.gameState.day === 1;
         const allowFirstDayVoting = room.settings?.rules?.firstDayVoting ?? true;
 
@@ -150,7 +127,6 @@ function nextSpeaker(room, io) {
 
 function nominateCandidate(room, io, speakerUsername, candidateName) {
     if (room.gameState && room.gameState.phase === 2) {
-        // Выставлять может только текущий говорящий
         if (room.gameState.currentSpeaker !== speakerUsername) return;
 
         const candidate = room.players.find(p => (p.username === candidateName || p.name === candidateName) && p.isAlive !== false);
@@ -163,21 +139,19 @@ function nominateCandidate(room, io, speakerUsername, candidateName) {
         const currentNomination = room.gameState.speakerNominations[speakerUsername];
 
         if (currentNomination === candidateName) {
-            // Повторный клик по своему кандидату — отмена собственной номинации
             delete room.gameState.speakerNominations[speakerUsername];
         } else {
-            // Запись новой или изменённой номинации текущего спикера
             room.gameState.speakerNominations[speakerUsername] = candidateName;
 
+            const currentDay = room.gameState?.day || 1;
             if (!room.gameLog) room.gameLog = [];
             room.gameLog.push({
-                day: room.currentDay || 1,
+                day: currentDay,
                 type: 'nomination',
                 text: `Игрок ${speakerUsername} выдвинул кандидатуру ${candidateName}`
             });
         }
 
-        // Формирование итогового списка уникальных кандидатов
         room.gameState.nominatedCandidates = Array.from(new Set(Object.values(room.gameState.speakerNominations)));
 
         if (room.gameState) {
@@ -232,9 +206,10 @@ function startVotingPhase(room, io, isTieBreaker = false) {
     room.gameState.timeLeft = 30;
     room.gameState.isTieBreaker = isTieBreaker;
 
+    const currentDay = room.gameState?.day || 1;
     if (!room.gameLog) room.gameLog = [];
     room.gameLog.push({
-        day: room.currentDay || 1,
+        day: currentDay,
         type: 'voting_start',
         text: isTieBreaker ? 'Началось повторное голосование' : 'Началось голосование'
     });
@@ -293,9 +268,10 @@ function tallyVotes(room, io) {
         })
         .join(' | ');
 
+    const currentDay = room.gameState?.day || 1;
     if (!room.gameLog) room.gameLog = [];
     room.gameLog.push({
-        day: room.currentDay || 1,
+        day: currentDay,
         type: 'voting_results',
         text: `Итоги голосования: ${votingSummary}`
     });
@@ -331,7 +307,7 @@ function tallyVotes(room, io) {
 }
 
 function startDefenseSpeeches(room, io, tiedCandidates) {
-    room.gameState.phase = 2.5; // Оправдательная речь
+    room.gameState.phase = 2.5;
     room.gameState.phaseText = 'Оправдательная речь';
     room.gameState.tieCandidates = tiedCandidates;
     room.gameState.speakersQueue = [...tiedCandidates];
@@ -377,44 +353,16 @@ function nextDefenseSpeaker(room, io) {
     }
 }
 
-function checkWinCondition(room, io) {
-    const rolesList = Object.values(ROLES);
-
-    for (const roleObj of rolesList) {
-        if (typeof roleObj.winCondition === 'function') {
-            if (roleObj.winCondition(room)) {
-                const winnerTeam = roleObj.team;
-
-                if (room.timer) clearInterval(room.timer);
-
-                room.gameState.phase = 6; // Фаза 6: Конец игры
-                room.gameState.phaseText = `Игра окончена! Победили: ${winnerTeam}`;
-                room.gameState.winner = winnerTeam;
-                room.gameState.players = room.players;
-
-                io.to(room.id).emit('gameStateUpdate', room.gameState);
-                io.to(room.id).emit('gameEnded', { winner: winnerTeam, players: room.players });
-
-                // Сброс состояния и статуса комнаты для разблокировки кнопки "Начать игру"
-                room.status = 'waiting';
-                room.gameState = null;
-
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 function eliminatePlayer(room, io, candidateName, isFromNight = false) {
     const player = room.players.find(p => p.username === candidateName || p.name === candidateName);
     if (player) {
         player.isAlive = false;
     }
 
+    const currentDay = room.gameState?.day || 1;
     if (!room.gameLog) room.gameLog = [];
     room.gameLog.push({
-        day: room.currentDay || 1,
+        day: currentDay,
         type: isFromNight ? 'night_kill' : 'day_kill',
         text: isFromNight 
             ? `По итогам ночи был исключён игрок ${candidateName}` 
@@ -435,7 +383,7 @@ function eliminatePlayer(room, io, candidateName, isFromNight = false) {
 function startLastWordPhase(room, io, candidateName, isFromNight = false) {
     const speechDuration = room.settings?.timers?.individualSpeech ?? 60;
 
-    room.gameState.phase = 4; // Последнее слово
+    room.gameState.phase = 4;
     room.gameState.phaseText = `${candidateName} отправляется варить кофе для всех.`;
     room.gameState.currentSpeaker = candidateName;
     room.gameState.timeLeft = speechDuration;
@@ -458,9 +406,9 @@ function startLastWordPhase(room, io, candidateName, isFromNight = false) {
         if (room.gameState.timeLeft <= 0) {
             clearInterval(room.timer);
             if (room.gameState.isFromNight) {
-                setPhase(room, 1, io); // После ночной жертвы -> Общее собрание
+                setPhase(room, 1, io);
             } else {
-                startNightPhase(room, io); // После дневного голосования -> Ночь
+                startNightPhase(room, io);
             }
         } else {
             io.to(room.id).emit('gameStateUpdate', room.gameState);
@@ -469,12 +417,11 @@ function startLastWordPhase(room, io, candidateName, isFromNight = false) {
 }
 
 function startNightPhase(room, io) {
-    room.gameState.phase = 5; // Ночь
+    room.gameState.phase = 5;
     room.gameState.phaseText = 'Ночь... Наступает время ролей';
     room.gameState.timeLeft = 30;
     room.gameState.nightSkipVotes = [];
 
-    // Инициализация ночных данных
     room.gameState.nightVotes = {};
     room.gameState.nightTarget = null;
     room.gameState.sheriffChecks = {};
@@ -506,13 +453,13 @@ function skipNightPhase(room, io, username) {
     if (room.gameState && room.gameState.phase === 5) {
         const player = room.players.find(p => p.username === username || p.name === username);
         
-        // Досрочно пропускать ночь могут живые активные роли
-        if (player && player.isAlive !== false && player.role !== ROLES.CIVILIAN.name) {
+        const civilianRoleName = ROLES.CIVILIAN ? ROLES.CIVILIAN.name : 'Мирный';
+        if (player && player.isAlive !== false && player.role !== civilianRoleName) {
             if (!room.gameState.nightSkipVotes.includes(username)) {
                 room.gameState.nightSkipVotes.push(username);
             }
 
-            const activeRoles = room.players.filter(p => p.isAlive !== false && p.role !== ROLES.CIVILIAN.name);
+            const activeRoles = room.players.filter(p => p.isAlive !== false && p.role !== civilianRoleName);
             
             if (room.gameState.nightSkipVotes.length >= activeRoles.length) {
                 if (room.timer) clearInterval(room.timer);
@@ -527,7 +474,6 @@ function skipNightPhase(room, io, username) {
 function endNightPhase(room, io) {
     room.gameState.day = (room.gameState.day || 1) + 1;
 
-    // Подсчет голосов мафии
     const mafiaVotes = Object.values(room.gameState.nightVotes || {});
     if (mafiaVotes.length > 0) {
         const voteCounts = {};
@@ -548,27 +494,33 @@ function endNightPhase(room, io) {
 
     let killedPlayerName = room.gameState.nightTarget || null;
 
-    // Если Доктор вылечил цель Мафии, выстрел отменяется
     if (killedPlayerName && room.gameState.doctorTarget === killedPlayerName) {
         killedPlayerName = null;
     }
 
-    // Фиксируем выбор Доктора для правила «нельзя лечить 2 ночи подряд»
     room.lastHealedTarget = room.gameState.doctorTarget || null;
 
     const newsData = {
         killed: killedPlayerName,
         message: killedPlayerName 
             ? `Игрок ${killedPlayerName} съел несвежий пончик и попал в больницу. 🚑` 
-            : (room.gameState.doctorTarget ? `Игрок ${room.gameState.doctorTarget} Получил клизму и чувствует себя прекрасно!` : 'Сегодня ночью никто не отравился')
+            : (room.gameState.doctorTarget ? `Игрок ${room.gameState.doctorTarget} получил клизму и чувствует себя прекрасно!` : 'Сегодня ночью никто не отравился')
     };
+
+    if (!room.gameLog) room.gameLog = [];
+    room.gameLog.push({
+        day: room.gameState.day,
+        type: 'night_results',
+        text: newsData.message
+    });
+    room.gameState.gameLog = room.gameLog;
 
     io.to(room.id).emit('nightNews', newsData);
 
     if (killedPlayerName) {
         eliminatePlayer(room, io, killedPlayerName, true);
     } else {
-        setPhase(room, 1, io); // В Общее собрание следующего дня
+        setPhase(room, 1, io);
     }
 }
 
@@ -585,22 +537,6 @@ function startGame(room, io) {
     setPhase(room, 0, io);
 }
 
-function healPlayer(room, io, doctorUsername, targetName) {
-    if (!room.gameState || room.gameState.phase !== 5) return;
-
-    // Запрет лечения одного и того же игрока две ночи подряд
-    if (room.lastHealedTarget === targetName) {
-        const doctor = room.players.find(p => p.username === doctorUsername || p.name === doctorUsername);
-        if (doctor && doctor.id) {
-            io.to(doctor.id).emit('errorMessage', 'Нельзя лечить одного и того же игрока две ночи подряд.');
-        }
-        return;
-    }
-
-    room.gameState.doctorTarget = targetName;
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
-}
-
 module.exports = {
     startGame,
     setPhase,
@@ -608,7 +544,11 @@ module.exports = {
     finishSpeechEarly,
     nominateCandidate,
     castVote,
+    startVotingPhase,
+    tallyVotes,
+    eliminatePlayer,
+    startLastWordPhase,
+    startNightPhase,
     skipNightPhase,
-    checkWinCondition,
-	healPlayer
+    endNightPhase
 };

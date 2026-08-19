@@ -1,4 +1,3 @@
-// Реестр всех ролей игры
 const ROLES = {
     CIVILIAN: {
         id: 'civilian',
@@ -64,7 +63,6 @@ const ROLES = {
                 room.gameState.sheriffChecks = {};
             }
 
-            // Запрет на изменение выбора, если он уже сделан
             if (room.gameState.sheriffChecks[speakerUsername]) {
                 return null;
             }
@@ -72,7 +70,6 @@ const ROLES = {
             const targetPlayer = room.players.find(p => (p.username === targetName || p.name === targetName));
             if (!targetPlayer) return null;
 
-            // Проверка по роли игрока
             const isMafia = targetPlayer.role === ROLES.MAFIA.name || targetPlayer.role === 'Мафия';
             const result = isMafia 
                 ? `В багажнике игрока ${targetName} была обнаружена партия несвежих пончиков.` 
@@ -121,7 +118,6 @@ const ROLES = {
     }
 };
 
-// Универсальная функция выполнения ночного действия
 function executeRoleAction(roleName, room, speakerUsername, targetName) {
     const roleObject = Object.values(ROLES).find(r => r.name === roleName);
     
@@ -131,29 +127,45 @@ function executeRoleAction(roleName, room, speakerUsername, targetName) {
     return null;
 }
 
-// Динамическое формирование пула ролей
 function generateRolePool(totalPlayers, roomSettings = {}) {
     let pool = [];
+    const settings = roomSettings || {};
+    const rolesConfig = settings.roles || settings;
 
-    // Добавляем обязательную 1 Мафию
+    const isEnabled = (val, defaultValue) => {
+        if (val === undefined || val === null) return defaultValue;
+        return val === true || val === 'true' || val === 1 || val === '1';
+    };
+
     pool.push(ROLES.MAFIA.name);
 
-    // Вторая Мафия при 6+ игроках
-    if (totalPlayers >= 6) {
+    if (isEnabled(rolesConfig.don, false) && ROLES.DON) {
+        if (pool.length < totalPlayers) {
+            pool.push(ROLES.DON.name);
+        }
+    }
+
+    const extraMafiaCount = parseInt(rolesConfig.extraMafia);
+    if (!isNaN(extraMafiaCount)) {
+        for (let i = 0; i < extraMafiaCount; i++) {
+            if (pool.length < totalPlayers) {
+                pool.push(ROLES.MAFIA.name);
+            }
+        }
+    } else if (totalPlayers >= 6 && pool.length < totalPlayers) {
         pool.push(ROLES.MAFIA.name);
     }
 
-    // Шериф при 4+ игроках
-    if (totalPlayers >= 4) {
+    const defaultSheriff = totalPlayers >= 4;
+    if (isEnabled(rolesConfig.sheriff, defaultSheriff) && pool.length < totalPlayers) {
         pool.push(ROLES.SHERIFF.name);
     }
 
-    // Доктор при 4+ игроках
-    if (totalPlayers >= 4) {
+    const defaultDoctor = totalPlayers >= 4;
+    if (isEnabled(rolesConfig.doctor, defaultDoctor) && pool.length < totalPlayers) {
         pool.push(ROLES.DOCTOR.name);
     }
 
-    // Заполняем оставшиеся места Мирными жителями
     while (pool.length < totalPlayers) {
         pool.push(ROLES.CIVILIAN.name);
     }
@@ -161,8 +173,63 @@ function generateRolePool(totalPlayers, roomSettings = {}) {
     return pool;
 }
 
+function assignRoles(room) {
+    const players = room.players;
+    const totalPlayers = players.length;
+
+    const rolePool = generateRolePool(totalPlayers, room.settings);
+    rolePool.sort(() => Math.random() - 0.5);
+
+    room.players.forEach((player, index) => {
+        const roleName = rolePool[index];
+        player.role = roleName;
+        player.isAlive = true;
+
+        const roleObj = Object.values(ROLES).find(r => r.name === roleName);
+        player.team = roleObj ? roleObj.team : 'Мирные';
+    });
+}
+
+function checkWinCondition(room, io) {
+    if (!room || !room.players) return null;
+
+    const rolesList = Object.values(ROLES);
+
+    for (const roleObj of rolesList) {
+        if (typeof roleObj.winCondition === 'function') {
+            if (roleObj.winCondition(room)) {
+                const winner = roleObj.team;
+
+                if (room.timer) {
+                    clearInterval(room.timer);
+                    room.timer = null;
+                }
+
+                if (room.gameState) {
+                    room.gameState.phase = 6;
+                    room.gameState.phaseText = `Игра окончена! Победили ${winner}`;
+                    room.gameState.winner = winner;
+                }
+
+                room.isStarted = false;
+                room.status = 'waiting';
+
+                if (io && room.id) {
+                    io.to(room.id).emit('gameStateUpdate', room.gameState);
+                    io.to(room.id).emit('gameOver', { winner: winner });
+                }
+
+                return winner;
+            }
+        }
+    }
+    return null;
+}
+
 module.exports = {
     ROLES,
     executeRoleAction,
-    generateRolePool
+    generateRolePool,
+    assignRoles,
+    checkWinCondition
 };

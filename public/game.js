@@ -9,7 +9,52 @@ let currentSettings = null;
 let myNominatedCandidate = null;
 let lastSpeaker = null;
 let isMicOn = true;
-let isSoundOn = true;
+let myBlacklist = [];
+
+// Единая функция для создания кнопок управления звуком
+function createAudioButton(player, socketId) {
+    const isMe = (player.id === socketId);
+    const btn = document.createElement('button');
+    btn.className = 'card-audio-btn';
+    btn.style.margin = '5px';
+    btn.style.padding = '2px 6px';
+    btn.style.fontSize = '0.8rem';
+
+    const updateBtnText = (muted) => {
+        if (isMe) {
+            btn.textContent = isMicOn ? '🎙️ Микрофон' : '🔇 Выкл';
+        } else {
+            btn.textContent = muted ? '🔇 Вкл звук' : '🔊 Выкл звук';
+        }
+    };
+
+    if (isMe) {
+        updateBtnText(false);
+        btn.onclick = async () => {
+            try {
+                isMicOn = !isMicOn;
+                await AudioModule.toggleMicrophone(isMicOn);
+                updateBtnText();
+            } catch (err) {
+                alert('Браузер заблокировал микрофон. Разрешите доступ к микрофону в настройках браузера.');
+            }
+        };
+    } else {
+        const audioEl = document.getElementById(`audio-${player.id}`);
+        updateBtnText(audioEl ? audioEl.muted : false);
+        
+        btn.onclick = () => {
+            const targetAudio = document.getElementById(`audio-${player.id}`);
+            if (targetAudio) {
+                targetAudio.muted = !targetAudio.muted;
+                updateBtnText(targetAudio.muted);
+            } else {
+                alert('Аудиопоток игрока еще не готов.');
+            }
+        };
+    }
+    return btn;
+}
 
 // Элементы экранов
 const lobbyScreen = document.getElementById('lobby-screen');
@@ -43,6 +88,19 @@ let skipNightBtn = null;
 const roleModal = document.getElementById('role-modal');
 const modalPlayerRole = document.getElementById('modal-player-role');
 const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+
+// Получение и обновление черного списка
+socket.on('blacklistUpdated', (updatedBlacklist) => {
+    myBlacklist = updatedBlacklist;
+});
+
+// Запрашиваем ЧС при успешном подключении
+socket.on('connect', () => {
+    if (roomId) {
+        socket.emit('joinRoom', { roomId, username });
+    }
+    socket.emit('getBlacklist');
+});
 
 socket.on('signal', ({ from, signal }) => {
   AudioModule.handleSignal(from, signal, socket);
@@ -109,7 +167,7 @@ socket.on('playSpeakerSignal', () => {
     }
 });
 
-// Обновление списка игроков в лобби
+// Обновленный блок отрисовки списка игроков в лобби
 socket.on('updatePlayers', (players) => {
     if (lobbyPlayersList) {
         lobbyPlayersList.innerHTML = '';
@@ -117,65 +175,27 @@ socket.on('updatePlayers', (players) => {
 
         players.forEach(player => {
             const item = document.createElement('div');
-            item.style.display = 'flex';
-            item.style.justifyContent = 'space-between';
-            item.style.alignItems = 'center';
-            item.style.marginBottom = '6px';
+            item.className = 'lobby-player-card'; // Для стилизации карточки
+            item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; marginBottom: 6px; padding: 8px; background: #282a45; border-radius: 6px; cursor: pointer; position: relative;';
             
             const nameSpan = document.createElement('span');
             nameSpan.textContent = player.username || player.name;
             item.appendChild(nameSpan);
 
             const controlsDiv = document.createElement('div');
-
-            const audioBtn = document.createElement('button');
-            audioBtn.style.marginLeft = '8px';
-            audioBtn.style.padding = '2px 6px';
-
-            if (player.id === socket.id) {
-                audioBtn.textContent = isMicOn ? '🎙️ Микрофон вкл' : '🔇 Микрофон выкл';
-                audioBtn.onclick = async () => {
-                    try {
-                        if (!isMicOn) {
-                            await AudioModule.startMicrophone();
-                            isMicOn = true;
-                        } else {
-                            isMicOn = false;
-                        }
-                        AudioModule.toggleMicrophone(isMicOn);
-                        audioBtn.textContent = isMicOn ? '🎙️ Микрофон вкл' : '🔇 Микрофон выкл';
-                    } catch (err) {
-                        alert('Браузер заблокировал микрофон. Разрешите доступ к микрофону в настройках браузера.');
-                        isMicOn = false;
-                        audioBtn.textContent = '🔇 Микрофон выкл';
-                    }
-                };
-            } else {
-                const audioEl = document.getElementById(`audio-${player.id}`);
-                const isMuted = audioEl ? audioEl.muted : false;
-                audioBtn.textContent = isMuted ? '🔇 Включить звук' : '🔊 Выключить звук';
-                audioBtn.onclick = () => {
-                    const targetAudio = document.getElementById(`audio-${player.id}`);
-                    if (targetAudio) {
-                        targetAudio.muted = !targetAudio.muted;
-                        audioBtn.textContent = targetAudio.muted ? '🔇 Включить звук' : '🔊 Выключить звук';
-                    }
-                };
-            }
+            const audioBtn = createAudioButton(player, socket.id);
             controlsDiv.appendChild(audioBtn);
-
-            if (isHost && player.id !== socket.id) {
-                const kickBtn = document.createElement('button');
-                kickBtn.textContent = '❌';
-                kickBtn.style.marginLeft = '6px';
-                kickBtn.style.padding = '2px 6px';
-                kickBtn.onclick = () => {
-                    socket.emit('kickPlayer', { roomId, targetId: player.id });
-                };
-                controlsDiv.appendChild(kickBtn);
-            }
-
             item.appendChild(controlsDiv);
+
+            // Клик по карточке для открытия интерактивного меню (для всех игроков по чужим карточкам)
+           if (player.id !== socket.id) {
+           item.addEventListener('click', (e) => {
+                // Предотвращаем срабатывание, если кликнули именно по кнопке звука
+                if (e.target.closest('button')) return;
+                showPlayerContextMenu(player, socket, roomId, isHost);
+            });
+        }
+
             lobbyPlayersList.appendChild(item);
         });
 
@@ -183,6 +203,67 @@ socket.on('updatePlayers', (players) => {
         if (openSettingsBtn) openSettingsBtn.style.display = isHost ? 'inline-block' : 'none';
     }
 });
+
+// Функция для показа интерактивного меню игрока
+function showPlayerContextMenu(player, socket, roomId, isHost) {
+    let oldMenu = document.getElementById('player-context-menu');
+    if (oldMenu) oldMenu.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'player-context-menu';
+    menu.style.cssText = 'position: fixed; background: #1a1c29; border: 1px solid #434978; border-radius: 8px; padding: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 6px; min-width: 200px;';
+    
+    menu.style.top = '50%';
+    menu.style.left = '50%';
+    menu.style.transform = 'translate(-50%, -50%)';
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight: bold; margin-bottom: 4px; padding: 4px; border-bottom: 1px solid #434978; color: #fff; text-align: center;';
+    title.textContent = player.username || player.name;
+    menu.appendChild(title);
+
+    // Кнопка "Выгнать" доступна только ведущему
+    if (isHost) {
+        const kickBtn = document.createElement('button');
+        kickBtn.textContent = '❌ Выгнать из комнаты';
+        kickBtn.style.cssText = 'width: 100%; padding: 8px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;';
+        kickBtn.onclick = () => {
+            socket.emit('kickPlayer', { roomId, targetId: player.id });
+            menu.remove();
+        };
+        menu.appendChild(kickBtn);
+    }
+
+    // Чёрный список доступен абсолютно всем против всех пользователей
+    // Идентификация пользователя для ЧС
+    const targetUserId = player.userId || player.id;
+    const isBlocked = myBlacklist.some(id => String(id) === String(targetUserId));
+
+    const blacklistBtn = document.createElement('button');
+    blacklistBtn.textContent = isBlocked ? '✅ Из чёрного списка' : '🚫 В чёрный список';
+    blacklistBtn.style.cssText = `width: 100%; padding: 8px 12px; background: ${isBlocked ? '#27ae60' : '#d35400'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;`;
+
+    blacklistBtn.onclick = () => {
+        if (isBlocked) {
+            socket.emit('removeFromBlacklist', { targetUserId });
+        } else {
+            if (confirm(`Заблокировать ${player.username || player.name}?`)) {
+                socket.emit('addToBlacklist', { targetUserId, roomId });
+            }
+        }
+        menu.remove();
+    };
+    menu.appendChild(blacklistBtn);
+
+    // Кнопка «Закрыть»
+    const closeMenuBtn = document.createElement('button');
+    closeMenuBtn.textContent = 'Закрыть';
+    closeMenuBtn.style.cssText = 'width: 100%; padding: 6px; background: #434978; color: white; border: none; border-radius: 4px; cursor: pointer;';
+    closeMenuBtn.onclick = () => menu.remove();
+    menu.appendChild(closeMenuBtn);
+
+    document.body.appendChild(menu);
+}
 
 // Переключение на экран игры
 socket.on('gameStarted', () => {
@@ -207,7 +288,7 @@ socket.on('nightNews', (data) => {
     showNightNewsModal(data.message);
 });
 
-// Обработка ошибок от сервера (например, запрет повторного лечения)
+// Обработка ошибок от сервера
 socket.on('errorMessage', (msg) => {
     alert(msg);
 });
@@ -234,7 +315,6 @@ socket.on('gameStateUpdate', (state) => {
         phaseTimer.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
-    // Если наступила Фаза 6 (Конец игры)
     if (state.phase === 6) {
         showGameOverModal(state.winner, state.players);
         return;
@@ -389,9 +469,9 @@ socket.on('gameStateUpdate', (state) => {
                 playersGrid.className = 'voting-mode';
                 
                 let hintText = '';
-                if (myRole === 'Шериф') hintText = 'Чей багажник проверить?';
-                else if (myRole === 'Мафия') hintText = 'Кого угостить несвежим пончиком?';
-                else if (myRole === 'Доктор') hintText = 'Кого отправить на клизму?';
+                if (myRole.includes('Шериф')) hintText = 'Чей багажник проверить?';
+                else if (myRole.includes('Мафия') || myRole.includes('Дон')) hintText = 'Кого угостить несвежим пончиком?';
+                else if (myRole.includes('Доктор')) hintText = 'Кого отправить на клизму?';
 
                 if (hintText) {
                     const hintBox = document.createElement('div');
@@ -401,7 +481,7 @@ socket.on('gameStateUpdate', (state) => {
                 }
 
                 let selectablePlayers = state.players.filter(player => player.isAlive !== false);
-                if (myRole === 'Шериф') {
+                if (myRole.includes('Шериф')) {
                     selectablePlayers = selectablePlayers.filter(player => (player.username || player.name) !== myName);
                 }
 
@@ -410,11 +490,11 @@ socket.on('gameStateUpdate', (state) => {
                     const card = document.createElement('div');
 
                     let isTargeted = false;
-                    if (myRole === 'Шериф' && state.sheriffChecks && (state.sheriffChecks[myName]?.target === pName || state.sheriffChecks[username]?.target === pName)) {
+                    if (myRole.includes('Шериф') && state.sheriffChecks && (state.sheriffChecks[myName]?.target === pName || state.sheriffChecks[username]?.target === pName)) {
                         isTargeted = true;
-                    } else if (myRole === 'Мафия' && state.nightVotes && (state.nightVotes[myName] === pName || state.nightVotes[username] === pName)) {
+                    } else if ((myRole.includes('Мафия') || myRole.includes('Дон')) && state.nightVotes && (state.nightVotes[myName] === pName || state.nightVotes[username] === pName)) {
                         isTargeted = true;
-                    } else if (myRole === 'Доктор' && state.doctorHeals && (state.doctorHeals[myName] === pName || state.doctorHeals[username] === pName)) {
+                    } else if (myRole.includes('Доктор') && (state.doctorTarget === pName || (state.doctorHeals && (state.doctorHeals[myName] === pName || state.doctorHeals[username] === pName)))) {
                         isTargeted = true;
                     }
 
@@ -444,57 +524,17 @@ socket.on('gameStateUpdate', (state) => {
                 const card = document.createElement('div');
                 card.className = `player-card ${player.id === null ? 'offline' : ''} ${!player.isAlive ? 'dead' : ''}`;
                 
-                const isMe = (player.username === username || player.name === username || player.id === socket.id);
-                
-                let audioBtnHtml = '';
-                if (isMe) {
-                    audioBtnHtml = `<button class="card-audio-btn" id="mic-btn-card" style="margin-top:6px; padding:2px 6px; font-size:0.8rem;">${isMicOn ? '🎙️ Микрофон' : '🔇 Выкл'}</button>`;
-                } else if (player.id) {
-                    const audioEl = document.getElementById(`audio-${player.id}`);
-                    const isMuted = audioEl ? audioEl.muted : false;
-                    audioBtnHtml = `<button class="card-audio-btn" id="audio-btn-${player.id}" style="margin-top:6px; padding:2px 6px; font-size:0.8rem;">${isMuted ? '🔇 Вкл звук' : '🔊 Выкл звук'}</button>`;
-                }
-
                 card.innerHTML = `
                     <div class="player-name">${player.username || player.name}</div>
                     <div class="player-status">${player.id === null ? 'Офлайн' : (player.isAlive ? 'В игре' : 'Мертв')}</div>
-                    ${audioBtnHtml}
                 `;
-                playersGrid.appendChild(card);
 
-                if (isMe) {
-                    const btn = card.querySelector('#mic-btn-card');
-                    if (btn) {
-                        btn.onclick = async () => {
-                            try {
-                                if (!isMicOn) {
-                                    await AudioModule.startMicrophone();
-                                    isMicOn = true;
-                                } else {
-                                    isMicOn = false;
-                                }
-                                AudioModule.toggleMicrophone(isMicOn);
-                                btn.textContent = isMicOn ? '🎙️ Микрофон' : '🔇 Выкл';
-                            } catch (err) {
-                                alert('Браузер заблокировал микрофон. Разрешите доступ к микрофону в настройках браузера.');
-                                isMicOn = false;
-                                btn.textContent = '🔇 Выкл';
-                            }
-                        };
-                    }
+                // Вставка единой кнопки
+                if (player.id) {
+                    const audioBtn = createAudioButton(player, socket.id);
+                    card.appendChild(audioBtn);
                 }
-				else if (player.id) {
-                    const btn = card.querySelector(`#audio-btn-${player.id}`);
-                    if (btn) {
-                        btn.onclick = () => {
-                            const targetAudio = document.getElementById(`audio-${player.id}`);
-                            if (targetAudio) {
-                                targetAudio.muted = !targetAudio.muted;
-                                btn.textContent = targetAudio.muted ? '🔇 Вкл звук' : '🔊 Выкл звук';
-                            }
-                        };
-                    }
-                }
+                playersGrid.appendChild(card);
             });
         }
 
@@ -517,7 +557,7 @@ socket.on('gameStateUpdate', (state) => {
         }
     }
 	
-	if (state.gameLog) {
+    if (state.gameLog) {
         renderGameLog(state.gameLog);
     }
 });
@@ -789,20 +829,17 @@ if (endGameBtn) {
 
 // Создание элементов интерфейса журнала
 function initJournalUI() {
-    // Кнопка
     const openLogBtn = document.createElement('button');
     openLogBtn.id = 'open-log-btn';
     openLogBtn.textContent = '📜 Журнал';
     
-    // Поиск места для вставки кнопки (например, в game-controls)
     const gameControls = document.getElementById('game-controls');
     if (gameControls) {
         gameControls.appendChild(openLogBtn);
     } else {
-        document.body.appendChild(openLogBtn); // Фолбэк, если блока нет
+        document.body.appendChild(openLogBtn);
     }
 
-    // Модальное окно
     const logModal = document.createElement('div');
     logModal.id = 'log-modal';
     logModal.innerHTML = `
@@ -814,29 +851,8 @@ function initJournalUI() {
     `;
     document.body.appendChild(logModal);
 
-    // Логика открытия/закрытия
     openLogBtn.onclick = () => { logModal.style.display = 'flex'; };
     logModal.querySelector('.log-close-btn').onclick = () => { logModal.style.display = 'none'; };
 }
 
-// Вызови эту функцию при загрузке игры
 initJournalUI();
-
-const toggleMicBtn = document.getElementById('toggle-mic');
-if (toggleMicBtn) {
-  toggleMicBtn.addEventListener('click', () => {
-    isMicOn = !isMicOn;
-    AudioModule.toggleMicrophone(isMicOn);
-    toggleMicBtn.textContent = isMicOn ? 'Выключить микрофон' : 'Включить микрофон';
-  });
-}
-
-const toggleSoundBtn = document.getElementById('toggle-sound');
-if (toggleSoundBtn) {
-  toggleSoundBtn.addEventListener('click', () => {
-    isSoundOn = !isSoundOn;
-    const audioElements = document.querySelectorAll('audio');
-    AudioModule.toggleIncomingAudio(audioElements, isSoundOn);
-    toggleSoundBtn.textContent = isSoundOn ? 'Выключить звук' : 'Включить звук';
-  });
-}

@@ -1,4 +1,4 @@
-const { ROLES, executeRoleAction, generateRolePool } = require('./rolesConfig');
+const { ROLES, executeRoleAction } = require('./rolesConfig');
 const { startGame, setPhase, startIndividualSpeechPhase, finishSpeechEarly, nominateCandidate, castVote, skipNightPhase } = require('./gameLogic');
 const { getDefaultSettings } = require('./gameSettings');
 const express = require('express');
@@ -6,6 +6,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const db = require('./database');
+const session = require('express-session');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,7 +15,64 @@ const io = new Server(server);
 app.use(express.static('public'));
 app.use(express.json());
 
+const sessionMiddleware = session({
+    secret: 'mafia-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 24 * 60 * 60 * 1000 }
+});
+
+app.use(sessionMiddleware);
+
+// Связываем сессии Express с Socket.io
+io.use((socket, next) => {
+    sessionMiddleware(socket.request, {}, next);
+});
+
 const rooms = {};
+
+// Вспомогательные функции работы с таблицей blacklists в БД
+const Blacklist = {
+    add: (userId, blockedUserId) => {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'INSERT OR IGNORE INTO blacklists (user_id, blocked_user_id) VALUES (?, ?)',
+                [userId, blockedUserId],
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    },
+
+    remove: (userId, blockedUserId) => {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'DELETE FROM blacklists WHERE user_id = ? AND blocked_user_id = ?',
+                [userId, blockedUserId],
+                (err) => err ? reject(err) : resolve()
+            );
+        });
+    },
+
+    isBlocked: (userId, blockedUserId) => {
+        return new Promise((resolve, reject) => {
+            db.get(
+                'SELECT 1 FROM blacklists WHERE user_id = ? AND blocked_user_id = ?',
+                [userId, blockedUserId],
+                (err, row) => err ? reject(err) : resolve(!!row)
+            );
+        });
+    },
+
+    getAll: (userId) => {
+        return new Promise((resolve, reject) => {
+            db.all(
+                'SELECT blocked_user_id FROM blacklists WHERE user_id = ?',
+                [userId],
+                (err, rows) => err ? reject(err) : resolve(rows.map(r => r.blocked_user_id))
+            );
+        });
+    }
+};
 
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
@@ -29,10 +87,13 @@ app.post('/api/register', async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Генерация случайного шестизначного ID (от 100000 до 999999)
+        const customId = Math.floor(100000 + Math.random() * 900000);
 
         db.run(
-            'INSERT INTO users (username, password) VALUES (?, ?)',
-            [username, hashedPassword],
+            'INSERT INTO users (id, username, password) VALUES (?, ?, ?)',
+            [customId, username, hashedPassword],
             function (err) {
                 if (err) {
                     if (err.message.includes('UNIQUE constraint failed')) {
@@ -40,7 +101,7 @@ app.post('/api/register', async (req, res) => {
                     }
                     return res.status(500).json({ error: 'Ошибка сервера' });
                 }
-                res.json({ success: true, userId: this.lastID });
+                res.json({ success: true, userId: customId });
             }
         );
     } catch (err) {
@@ -68,7 +129,10 @@ app.post('/api/login', (req, res) => {
             return res.status(400).json({ error: 'Неверный логин или пароль' });
         }
 
-        res.json({ success: true, username: user.username });
+        req.session.userId = user.id;
+        req.session.username = user.username;
+
+        res.json({ success: true, username: user.username, userId: user.id });
     });
 });
 
@@ -77,11 +141,12 @@ app.post('/api/rooms/create', (req, res) => {
     rooms[roomId] = {
         id: roomId,
         hostUsername: null,
+        hostUserId: null,
         players: [],
         status: 'waiting',
         gameState: null,
         settings: getDefaultSettings(),
-		gameLog: []
+        gameLog: []
     };
     res.json({ success: true, roomId });
 });
@@ -90,16 +155,117 @@ app.get('/api/rooms', (req, res) => {
     res.json(Object.values(rooms));
 });
 
-io.on('connection', (socket) => {
+app.get('/api/user/balance', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
 
-    socket.on('joinRoom', ({ roomId, username }) => {
+    db.get('SELECT balance FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+        if (err || !user) {
+            return res.status(500).json({ error: 'Ошибка сервера' });
+        }
+        res.json({ balance: user.balance });
+    });
+});
+
+app.post('/api/daily-bonus', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    db.get('SELECT id, last_login_date, login_streak, balance FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+        if (err || !user) {
+            return res.status(500).json({ error: 'Ошибка сервера' });
+        }
+
+        if (user.last_login_date === today) {
+            return res.json({ success: false, message: 'Вы уже получили бонус сегодня!' });
+        }
+
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const newStreak = user.last_login_date === yesterday ? (user.login_streak || 0) + 1 : 1;
+        const reward = newStreak * 100;
+
+        db.run(
+            'UPDATE users SET balance = balance + ?, last_login_date = ?, login_streak = ? WHERE id = ?',
+            [reward, today, newStreak, user.id],
+            (err) => {
+                if (err) {
+                    return res.status(500).json({ error: 'Ошибка при зачислении бонуса' });
+                }
+                res.json({
+                    success: true,
+                    reward,
+                    newBalance: user.balance + reward,
+                    newStreak
+                });
+            }
+        );
+    });
+});
+
+app.get('/api/user/profile', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
+
+    db.get('SELECT id, username, balance FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+        if (err || !user) {
+            return res.status(500).json({ error: 'Ошибка получения профиля' });
+        }
+        res.json(user);
+    });
+});
+
+// Маршрут для админ-панели (начисление валюты)
+app.post('/api/admin/add-balance', (req, res) => {
+    const { userId, amount } = req.body;
+    
+    db.run(
+        'UPDATE users SET balance = balance + ? WHERE id = ?',
+        [amount, userId],
+        function(err) {
+            if (err) return res.status(500).json({ error: 'Ошибка БД' });
+            if (this.changes === 0) return res.status(404).json({ error: 'Пользователь не найден' });
+            res.json({ success: true, message: `Начислено ${amount} пользователю ${userId}` });
+        }
+    );
+});
+
+io.on('connection', (socket) => {
+    // Получаем userId из сессии socket
+    if (socket.request.session && socket.request.session.userId) {
+        socket.userId = socket.request.session.userId;
+    }
+
+    socket.on('joinRoom', async ({ roomId, username, userId }) => {
         if (!rooms[roomId]) return;
 
         const room = rooms[roomId];
         const clientName = username || 'Игрок_' + socket.id.substring(0, 4);
+        const currentUserId = userId || socket.userId || socket.request.session?.userId;
 
+        socket.userId = currentUserId;
+
+        // Определяем ведущего
         if (!room.hostUsername) {
             room.hostUsername = clientName;
+            room.hostUserId = currentUserId;
+        }
+
+        // Проверка: находится ли игрок в черном списке ведущего комнаты
+        if (room.hostUserId && currentUserId && room.hostUserId !== currentUserId) {
+            try {
+                const isBlocked = await Blacklist.isBlocked(room.hostUserId, currentUserId);
+                if (isBlocked) {
+                    socket.emit('errorMessage', 'Вы находитесь в чёрном списке ведущего этой комнаты.');
+                    return;
+                }
+            } catch (err) {
+                console.error('Ошибка проверки черного списка:', err);
+            }
         }
 
         let player = room.players.find(p => p.username === clientName || p.name === clientName);
@@ -117,6 +283,7 @@ io.on('connection', (socket) => {
         if (!player) {
             player = { 
                 id: socket.id, 
+                userId: currentUserId,
                 username: clientName, 
                 name: clientName, 
                 isAlive: true 
@@ -124,9 +291,9 @@ io.on('connection', (socket) => {
             room.players.push(player);
         } else {
             player.id = socket.id;
+            player.userId = currentUserId;
         }
 
-        // Закрепляем ведущего на первом месте в списке
         room.players.sort((a, b) => (a.username === room.hostUsername ? -1 : b.username === room.hostUsername ? 1 : 0));
 
         socket.emit('settingsUpdated', room.settings);
@@ -143,19 +310,90 @@ io.on('connection', (socket) => {
 
         io.to(roomId).emit('updatePlayers', room.players);
 
-        // Сигналы инициализации аудиосвязи
         socket.emit('room-joined');
         socket.to(roomId).emit('user-joined', { userId: socket.id });
     });
-	
-	socket.on('signal', ({ target, signal }) => {
-      io.to(target).emit('signal', {
-        from: socket.id,
-        signal
-      });
+
+    // Обработчики для Черного Списка
+   socket.on('addToBlacklist', async ({ targetUserId, roomId }) => {
+    // Определяем ID того, кто блокирует
+    let currentUserId = socket.userId || socket.request.session?.userId;
+    
+    // Если в сессии нет ID, ищем игрока в комнате
+    if (!currentUserId && roomId && rooms[roomId]) {
+        const me = rooms[roomId].players.find(p => p.id === socket.id);
+        if (me) currentUserId = me.userId || me.id;
+    }
+
+    if (!currentUserId || !targetUserId) {
+        console.error('Не удалось определить ID для ЧС:', { currentUserId, targetUserId });
+        return;
+    }
+
+    try {
+        // 1. Сохраняем в базу данных через встроенный модуль Blacklist
+        await Blacklist.add(currentUserId, targetUserId);
+
+        // 2. Достаем обновленный список ЧС и отправляем обратно игроку
+        const updatedList = await Blacklist.getAll(currentUserId);
+        
+        socket.emit('blacklistUpdated', updatedList);
+
+        // 3. Авто-исключение, если блокирующий является ведущим комнаты
+        if (roomId && rooms[roomId]) {
+            const room = rooms[roomId];
+            const isHost = socket.username === room.hostUsername || room.hostUserId === currentUserId;
+
+            if (isHost) {
+                const targetPlayer = room.players.find(p => String(p.userId) === String(targetUserId) || String(p.id) === String(targetUserId));
+                if (targetPlayer && targetPlayer.id) {
+                    const targetSocket = io.sockets.sockets.get(targetPlayer.id);
+                    if (targetSocket) {
+                        targetSocket.emit('kicked');
+                        targetSocket.leave(roomId);
+                    }
+                    room.players = room.players.filter(p => p.id !== targetPlayer.id);
+                    io.to(roomId).emit('updatePlayers', room.players);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Ошибка добавления в ЧС:', err);
+    }
+});
+
+    socket.on('removeFromBlacklist', async ({ targetUserId }) => {
+        const currentUserId = socket.userId || socket.request.session?.userId;
+        if (!currentUserId || !targetUserId) return;
+
+        try {
+            await Blacklist.remove(currentUserId, targetUserId);
+            const updatedList = await Blacklist.getAll(currentUserId);
+            socket.emit('blacklistUpdated', updatedList);
+        } catch (err) {
+            console.error('Ошибка удаления из ЧС:', err);
+        }
     });
 
-    // Добровольный выход из комнаты
+    socket.on('getBlacklist', async () => {
+        const currentUserId = socket.userId || socket.request.session?.userId;
+        if (!currentUserId) return;
+
+        try {
+            const list = await Blacklist.getAll(currentUserId);
+            socket.emit('blacklistUpdated', list);
+        } catch (err) {
+            console.error('Ошибка получения ЧС:', err);
+        }
+    });
+
+    socket.on('signal', ({ target, signal }) => {
+        io.to(target).emit('signal', {
+            from: socket.id,
+            signal
+        });
+    });
+
     socket.on('leaveRoom', ({ roomId }) => {
         const room = rooms[roomId];
         if (room) {
@@ -167,9 +405,10 @@ io.on('connection', (socket) => {
                 if (room.timer) clearInterval(room.timer);
                 delete rooms[roomId];
             } else {
-                // Если ушел хост, передаем хоста следующему игроку
                 if (socket.username === room.hostUsername) {
-                    room.hostUsername = room.players[0].username || room.players[0].name;
+                    const newHost = room.players[0];
+                    room.hostUsername = newHost.username || newHost.name;
+                    room.hostUserId = newHost.userId;
                 }
                 room.players.sort((a, b) => (a.username === room.hostUsername ? -1 : b.username === room.hostUsername ? 1 : 0));
                 io.to(roomId).emit('updatePlayers', room.players);
@@ -182,7 +421,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Исключение игрока хостом комнаты
     socket.on('kickPlayer', ({ roomId, targetId }) => {
         const room = rooms[roomId];
         if (room && socket.username === room.hostUsername) {
@@ -191,7 +429,6 @@ io.on('connection', (socket) => {
                 socket.to(roomId).emit('user-left', { userId: targetId });
                 room.players = room.players.filter(p => p.id !== targetId);
                 
-                // Отправляем кикнутому игроку сигнал и исключаем из сокета
                 io.to(targetId).emit('kicked');
                 const targetSocket = io.sockets.sockets.get(targetId);
                 if (targetSocket) {
@@ -260,7 +497,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Ночной ход игрока (Мафия, Шериф, Доктор)
     socket.on('nightAction', ({ roomId, targetName }) => {
         const room = rooms[roomId];
         if (room && room.gameState) {
@@ -299,7 +535,7 @@ io.on('connection', (socket) => {
                     if (room.timer) clearInterval(room.timer);
                     startIndividualSpeechPhase(room, io);
                 } else {
-                    io.to(roomId).emit('gameStateUpdate', room.gameState);
+                    io.to(room.id).emit('gameStateUpdate', room.gameState);
                 }
             }
         }
@@ -318,6 +554,11 @@ io.on('connection', (socket) => {
             if (room.players.length === 0) {
                 delete rooms[roomId];
             } else {
+                if (username === room.hostUsername && room.players.length > 0) {
+                    const newHost = room.players[0];
+                    room.hostUsername = newHost.username || newHost.name;
+                    room.hostUserId = newHost.userId;
+                }
                 room.players.sort((a, b) => (a.username === room.hostUsername ? -1 : b.username === room.hostUsername ? 1 : 0));
                 io.to(roomId).emit('updatePlayers', room.players);
                 if (room.gameState) {

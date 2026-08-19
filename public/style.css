@@ -802,11 +802,11 @@ ul.room-list-mock {
 }
 
 .log-modal-content {
-    max-width: 500px;
+    max-width: 380px;
     width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-    text-align: left;
+    height: 60vh;
+    display: flex;
+    flex-direction: column;
     background: #1e1e2f;
     color: #fff;
     border: 1px solid #434978;
@@ -821,10 +821,14 @@ ul.room-list-mock {
     padding-bottom: 10px;
 }
 
-#log-content {
+#game-log {
+	min-height: 290px;
+    flex: 1;
     margin: 15px 0;
-    max-height: 400px;
     overflow-y: auto;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
     font-size: 0.95rem;
 }
 
@@ -870,4 +874,13 @@ ul.room-list-mock {
 
 #audio-controls button:hover {
   background-color: #45a049;
+}
+
+.log-modal-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.log-close-btn {
+    margin-top: auto;
 }
