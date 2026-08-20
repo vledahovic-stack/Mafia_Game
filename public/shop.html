@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Магазин</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="dancing-title">
+                <span class="char c-1">M</span>
+                <span class="char c-2">A</span>
+                <span class="char c-3">G</span>
+                <span class="char c-4">A</span>
+                <span class="char c-5">Z</span>
+                <span class="char c-6">I</span>
+                <span class="char c-7">N</span>
+            </div>
+            <button id="back-btn" onclick="window.location.href='index.html'">На главную</button>
+        </header>
+
+        <hr>
+
+        <div class="section-title balance-container">
+            <span>Баланс:</span>
+            <span id="user-name"><span id="coins-count">0</span> 🪙</span>
+        </div>
+
+        <div class="single-card-wrapper">
+            <div class="role-card-item sheriff compact">
+                <div class="role-icon">🃏</div>
+                <div class="role-name">Карточка выбора роли</div>
+                <div class="role-desc">Позволяет выбрать желаемую роль. Цена: 1000 монет</div>
+                
+                <div class="buy-action-box">
+                    <input type="number" id="role_card_qty" class="buy-quantity-input" value="1" min="1" max="99">
+                    <button onclick="buyItem('role_card', document.getElementById('role_card_qty').value)">Купить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="shop.js"></script>
+</body>
+</html>

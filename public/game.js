@@ -11,7 +11,10 @@ let lastSpeaker = null;
 let isMicOn = true;
 let myBlacklist = [];
 
-// Единая функция для создания кнопок управления звуком
+let lastPhase = null;
+let lastSpeakerName = null;
+let lastStateJSON = '';
+
 function createAudioButton(player, socketId) {
     const isMe = (player.id === socketId);
     const btn = document.createElement('button');
@@ -56,22 +59,15 @@ function createAudioButton(player, socketId) {
     return btn;
 }
 
-// Элементы экранов
 const lobbyScreen = document.getElementById('lobby-screen');
 const gameScreen = document.getElementById('game-screen');
-
-// Элементы Лобби
 const lobbyPlayersList = document.getElementById('lobby-players-list');
 const startGameBtn = document.getElementById('start-game-btn');
 const openSettingsBtn = document.getElementById('open-settings-btn');
 const leaveRoomBtn = document.getElementById('leave-room-btn');
-
-// Элементы модального окна настроек
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const settingsForm = document.getElementById('settings-form');
-
-// Элементы Игры
 const dayCounter = document.getElementById('day-counter');
 const gamePhase = document.getElementById('game-phase');
 const phaseTimer = document.getElementById('phase-timer');
@@ -80,21 +76,17 @@ const skipPhaseBtn = document.getElementById('skip-phase-btn');
 const skipCountSpan = document.getElementById('skip-count');
 const endGameBtn = document.getElementById('end-game-btn');
 
-// Элементы управления речью
 let finishSpeechBtn = document.getElementById('finish-speech-btn');
 let skipNightBtn = null;
 
-// Модальное окно роли
 const roleModal = document.getElementById('role-modal');
 const modalPlayerRole = document.getElementById('modal-player-role');
 const modalConfirmBtn = document.getElementById('modal-confirm-btn');
 
-// Получение и обновление черного списка
 socket.on('blacklistUpdated', (updatedBlacklist) => {
     myBlacklist = updatedBlacklist;
 });
 
-// Запрашиваем ЧС при успешном подключении
 socket.on('connect', () => {
     if (roomId) {
         socket.emit('joinRoom', { roomId, username });
@@ -125,19 +117,10 @@ socket.on('user-left', ({ userId }) => {
   }
 });
 
-// Подключение к комнате
-socket.on('connect', () => {
-    if (roomId) {
-        socket.emit('joinRoom', { roomId, username });
-    }
-});
-
-// Событие принудительного исключения из комнаты
 socket.on('kicked', () => {
     window.location.href = '/';
 });
 
-// Кнопка самостоятельного выхода из комнаты
 if (leaveRoomBtn) {
     leaveRoomBtn.addEventListener('click', () => {
         socket.emit('leaveRoom', { roomId });
@@ -145,12 +128,10 @@ if (leaveRoomBtn) {
     });
 }
 
-// Получение/обновление настроек комнаты
 socket.on('settingsUpdated', (settings) => {
     currentSettings = settings;
 });
 
-// Звуковой сигнал о начале речи
 socket.on('playSpeakerSignal', () => {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -167,7 +148,6 @@ socket.on('playSpeakerSignal', () => {
     }
 });
 
-// Обновленный блок отрисовки списка игроков в лобби
 socket.on('updatePlayers', (players) => {
     if (lobbyPlayersList) {
         lobbyPlayersList.innerHTML = '';
@@ -175,7 +155,7 @@ socket.on('updatePlayers', (players) => {
 
         players.forEach(player => {
             const item = document.createElement('div');
-            item.className = 'lobby-player-card'; // Для стилизации карточки
+            item.className = 'lobby-player-card';
             item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; marginBottom: 6px; padding: 8px; background: #282a45; border-radius: 6px; cursor: pointer; position: relative;';
             
             const nameSpan = document.createElement('span');
@@ -187,14 +167,12 @@ socket.on('updatePlayers', (players) => {
             controlsDiv.appendChild(audioBtn);
             item.appendChild(controlsDiv);
 
-            // Клик по карточке для открытия интерактивного меню (для всех игроков по чужим карточкам)
-           if (player.id !== socket.id) {
-           item.addEventListener('click', (e) => {
-                // Предотвращаем срабатывание, если кликнули именно по кнопке звука
-                if (e.target.closest('button')) return;
-                showPlayerContextMenu(player, socket, roomId, isHost);
-            });
-        }
+            if (player.id !== socket.id) {
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('button')) return;
+                    showPlayerContextMenu(player, socket, roomId, isHost);
+                });
+            }
 
             lobbyPlayersList.appendChild(item);
         });
@@ -204,7 +182,6 @@ socket.on('updatePlayers', (players) => {
     }
 });
 
-// Функция для показа интерактивного меню игрока
 function showPlayerContextMenu(player, socket, roomId, isHost) {
     let oldMenu = document.getElementById('player-context-menu');
     if (oldMenu) oldMenu.remove();
@@ -222,7 +199,6 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
     title.textContent = player.username || player.name;
     menu.appendChild(title);
 
-    // Кнопка "Выгнать" доступна только ведущему
     if (isHost) {
         const kickBtn = document.createElement('button');
         kickBtn.textContent = '❌ Выгнать из комнаты';
@@ -234,8 +210,6 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
         menu.appendChild(kickBtn);
     }
 
-    // Чёрный список доступен абсолютно всем против всех пользователей
-    // Идентификация пользователя для ЧС
     const targetUserId = player.userId || player.id;
     const isBlocked = myBlacklist.some(id => String(id) === String(targetUserId));
 
@@ -255,7 +229,6 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
     };
     menu.appendChild(blacklistBtn);
 
-    // Кнопка «Закрыть»
     const closeMenuBtn = document.createElement('button');
     closeMenuBtn.textContent = 'Закрыть';
     closeMenuBtn.style.cssText = 'width: 100%; padding: 6px; background: #434978; color: white; border: none; border-radius: 4px; cursor: pointer;';
@@ -265,12 +238,17 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
     document.body.appendChild(menu);
 }
 
-// Переключение на экран игры
 socket.on('gameStarted', () => {
     switchToGameScreen();
 });
 
-// Получение роли
+socket.on('updateCardCount', (count) => {
+    const cardCountEl = document.getElementById('card-count');
+    if (cardCountEl) {
+        cardCountEl.textContent = count;
+    }
+});
+
 socket.on('yourRole', (data) => {
     if (data && data.role) {
         myRole = data.role;
@@ -278,22 +256,18 @@ socket.on('yourRole', (data) => {
     }
 });
 
-// Результат ночного действия (для Шерифа)
 socket.on('actionResult', ({ target, result }) => {
     showActionResultModal(target, result);
 });
 
-// Уведомление «Последние новости» по окончании ночи
 socket.on('nightNews', (data) => {
     showNightNewsModal(data.message);
 });
 
-// Обработка ошибок от сервера
 socket.on('errorMessage', (msg) => {
     alert(msg);
 });
 
-// Обновление состояния игрового стола
 socket.on('gameStateUpdate', (state) => {
     switchToGameScreen();
 
@@ -320,6 +294,44 @@ socket.on('gameStateUpdate', (state) => {
         return;
     }
 
+    const stateCompareCopy = {
+        phase: state.phase,
+        currentSpeaker: state.currentSpeaker,
+        votes: state.votes,
+        nightVotes: state.nightVotes,
+        sheriffChecks: state.sheriffChecks,
+        doctorTarget: state.doctorTarget,
+        players: state.players ? state.players.map(p => ({ id: p.id, isAlive: p.isAlive, name: p.username || p.name })) : []
+    };
+    const currentStateJSON = JSON.stringify(stateCompareCopy);
+
+    if (currentStateJSON !== lastStateJSON) {
+        lastStateJSON = currentStateJSON;
+        renderGridContent(state);
+    }
+
+    if (skipPhaseBtn) {
+        skipPhaseBtn.style.display = state.phase === 1 ? 'inline-block' : 'none';
+        if (skipCountSpan) {
+            skipCountSpan.textContent = `(${state.skipVotes || 0}/${state.requiredVotes || 0})`;
+        }
+
+        const me = state.players?.find(p => (p.username === username || p.name === username || p.id === socket.id));
+        const myName = me ? (me.username || me.name) : username;
+
+        if (state.votedPlayers && (state.votedPlayers.includes(myName) || state.votedPlayers.includes(username))) {
+            skipPhaseBtn.disabled = true;
+        } else {
+            skipPhaseBtn.disabled = false;
+        }
+    }
+
+    if (state.gameLog) {
+        renderGameLog(state.gameLog);
+    }
+});
+
+function renderGridContent(state) {
     let gameControls = document.getElementById('game-controls');
     if (gameControls) {
         if (!finishSpeechBtn) {
@@ -529,7 +541,6 @@ socket.on('gameStateUpdate', (state) => {
                     <div class="player-status">${player.id === null ? 'Офлайн' : (player.isAlive ? 'В игре' : 'Мертв')}</div>
                 `;
 
-                // Вставка единой кнопки
                 if (player.id) {
                     const audioBtn = createAudioButton(player, socket.id);
                     card.appendChild(audioBtn);
@@ -543,24 +554,7 @@ socket.on('gameStateUpdate', (state) => {
             endGameBtn.style.display = isHost ? 'inline-block' : 'none';
         }
     }
-
-    if (skipPhaseBtn) {
-        skipPhaseBtn.style.display = state.phase === 1 ? 'inline-block' : 'none';
-        if (skipCountSpan) {
-            skipCountSpan.textContent = `(${state.skipVotes || 0}/${state.requiredVotes || 0})`;
-        }
-
-        if (state.votedPlayers && (state.votedPlayers.includes(myName) || state.votedPlayers.includes(username))) {
-            skipPhaseBtn.disabled = true;
-        } else {
-            skipPhaseBtn.disabled = false;
-        }
-    }
-	
-    if (state.gameLog) {
-        renderGameLog(state.gameLog);
-    }
-});
+}
 
 function renderGameLog(logs) {
     const logContainer = document.getElementById('game-log');
@@ -577,7 +571,6 @@ function renderGameLog(logs) {
     logContainer.scrollTop = logContainer.scrollHeight;
 }
 
-// Окно завершения игры
 function showGameOverModal(winner, players) {
     let gameOverModal = document.getElementById('game-over-modal');
     if (!gameOverModal) {
@@ -603,6 +596,12 @@ function showGameOverModal(winner, players) {
             gameOverModal.style.display = 'none';
             if (lobbyScreen) lobbyScreen.style.display = 'block';
             if (gameScreen) gameScreen.style.display = 'none';
+
+            // Показываем блок карточки роли снова в лобби
+            const roleCardBlock = document.getElementById('role-card-block');
+            if (roleCardBlock) {
+                roleCardBlock.style.display = 'block';
+            }
         };
     }
 
@@ -638,7 +637,6 @@ function showGameOverModal(winner, players) {
     gameOverModal.style.display = 'flex';
 }
 
-// Модальное окно "Результат ночной проверки"
 function showActionResultModal(target, result) {
     let actionModal = document.getElementById('action-result-modal');
     if (!actionModal) {
@@ -672,7 +670,6 @@ function showActionResultModal(target, result) {
     actionModal.style.display = 'flex';
 }
 
-// Модальное окно "Последние новости" (Ночное досье)
 function showNightNewsModal(messageText) {
     let newsModal = document.getElementById('night-news-modal');
     if (!newsModal) {
@@ -704,7 +701,6 @@ function showNightNewsModal(messageText) {
     newsModal.style.display = 'flex';
 }
 
-// Модальное окно отображения полученной роли
 function showRoleModal(role) {
     if (roleModal && modalPlayerRole) {
         let roleClass = 'civilian';
@@ -736,7 +732,6 @@ function showRoleModal(role) {
     }
 }
 
-// Управление модальным окном настроек
 if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', () => {
         if (currentSettings) {
@@ -788,19 +783,30 @@ if (settingsForm) {
     });
 }
 
-// Завершение игры (показ результатов)
 socket.on('gameEnded', (data) => {
     if (data && data.winner) {
         showGameOverModal(data.winner, data.players);
     } else {
         if (lobbyScreen) lobbyScreen.style.display = 'block';
         if (gameScreen) gameScreen.style.display = 'none';
+
+        // Показываем блок карточки роли при сбросе игры в лобби
+        const roleCardBlock = document.getElementById('role-card-block');
+        if (roleCardBlock) {
+            roleCardBlock.style.display = 'block';
+        }
     }
 });
 
 function switchToGameScreen() {
     if (lobbyScreen) lobbyScreen.style.display = 'none';
     if (gameScreen) gameScreen.style.display = 'block';
+
+    // Скрываем блок карточки роли во время игры
+    const roleCardBlock = document.getElementById('role-card-block');
+    if (roleCardBlock) {
+        roleCardBlock.style.display = 'none';
+    }
 }
 
 if (modalConfirmBtn) {
@@ -827,7 +833,6 @@ if (endGameBtn) {
     });
 }
 
-// Создание элементов интерфейса журнала
 function initJournalUI() {
     const openLogBtn = document.createElement('button');
     openLogBtn.id = 'open-log-btn';
@@ -856,3 +861,18 @@ function initJournalUI() {
 }
 
 initJournalUI();
+
+window.openRoleMenu = function() {
+    const modal = document.getElementById('role-select-modal');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeRoleMenu = function() {
+    const modal = document.getElementById('role-select-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.selectDesiredRole = function(role) {
+    socket.emit('selectRoleCard', { role: role });
+    window.closeRoleMenu();
+};

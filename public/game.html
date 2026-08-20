@@ -13,6 +13,12 @@
         <div id="lobby-screen">
 		    <button id="leave-room-btn">Выйти из комнаты</button>
             <h2>Комната ожидания</h2>
+            
+            <!-- Блок карточки выбора роли -->
+            <div id="role-card-block" style="margin: 10px 0;">
+                <button id="use-card-btn" onclick="openRoleMenu()">Использовать карточку роли (<span id="card-count">0</span>)</button>
+            </div>
+
             <div id="lobby-players-list"></div>
             <button id="open-settings-btn" style="display: none; margin-bottom: 10px;">Настройки комнаты</button>
             <button id="start-game-btn" style="display: none;">Начать игру</button>
@@ -40,6 +46,19 @@
         <div class="modal-content">
             <h3>Ваша роль: <span id="modal-player-role"></span></h3>
             <button id="modal-confirm-btn">Понятно</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно выбора желаемой роли перед игрой -->
+    <div id="role-select-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Выберите желаемую роль</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px;">
+                <button onclick="selectDesiredRole('mafia')">Мафия</button>
+                <button onclick="selectDesiredRole('doctor')">Доктор</button>
+                <button onclick="selectDesiredRole('sheriff')">Шериф</button>
+                <button onclick="closeRoleMenu()" style="background: #555; margin-top: 5px;">Отмена</button>
+            </div>
         </div>
     </div>
 

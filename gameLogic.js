@@ -29,6 +29,7 @@ function setPhase(room, phase, io) {
 
     if (room.timer) {
         clearInterval(room.timer);
+        room.timer = null;
     }
 
     if (phase === 1 && generalMeetingTime === 0) {

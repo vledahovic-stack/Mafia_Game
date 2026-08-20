@@ -27,6 +27,17 @@ db.serialize(() => {
             FOREIGN KEY (blocked_user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     `);
+	
+	// Таблица инвентаря пользователей
+    db.run(`
+        CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            item_id TEXT NOT NULL,
+            quantity INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+`    );
 
     const alterQueries = [
         `ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0`,

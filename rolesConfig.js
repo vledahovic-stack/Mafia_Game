@@ -177,15 +177,49 @@ function assignRoles(room) {
     const players = room.players;
     const totalPlayers = players.length;
 
-    const rolePool = generateRolePool(totalPlayers, room.settings);
+    // 1. Генерируем полный пул ролей под настройки комнаты
+    let rolePool = generateRolePool(totalPlayers, room.settings);
+
+    // Сбрасываем роли
+    players.forEach(p => {
+        p.isAlive = true;
+        p.role = null;
+    });
+
+    // 2. Находим всех игроков с карточками и перемешиваем их (жребий)
+    const desiredPlayers = players.filter(p => p.desiredRole);
+    desiredPlayers.sort(() => Math.random() - 0.5);
+
+    // 3. Раздаем роли по очереди победителям жребия
+    desiredPlayers.forEach(player => {
+        const targetRoleKey = player.desiredRole.toLowerCase();
+
+        const foundRoleIndex = rolePool.findIndex(roleName => {
+            const roleObj = Object.values(ROLES).find(r => r.name === roleName);
+            if (!roleObj) return false;
+            return roleObj.id.toLowerCase() === targetRoleKey || roleObj.name.toLowerCase().includes(targetRoleKey);
+        });
+
+        // Если роль ещё есть в пуле — игрок её получает
+        if (foundRoleIndex !== -1) {
+            player.role = rolePool[foundRoleIndex];
+            rolePool.splice(foundRoleIndex, 1);
+        }
+
+        // Карточка считается использованной и удаляется в любом случае
+        delete player.desiredRole;
+    });
+
+    // 4. Перемешиваем оставшийся пул ролей
     rolePool.sort(() => Math.random() - 0.5);
 
-    room.players.forEach((player, index) => {
-        const roleName = rolePool[index];
-        player.role = roleName;
-        player.isAlive = true;
+    // 5. Дораздаем роли оставшимся игрокам
+    players.forEach(player => {
+        if (!player.role) {
+            player.role = rolePool.pop();
+        }
 
-        const roleObj = Object.values(ROLES).find(r => r.name === roleName);
+        const roleObj = Object.values(ROLES).find(r => r.name === player.role);
         player.team = roleObj ? roleObj.team : 'Мирные';
     });
 }

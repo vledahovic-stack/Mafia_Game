@@ -15,6 +15,14 @@ async function loadProfile() {
         document.getElementById('profile-id').textContent = user.id;
         document.getElementById('profile-username').textContent = user.username;
         document.getElementById('profile-balance').textContent = user.balance;
+
+        // Выводим количество карточек выбора роли из инвентаря
+        const roleCardsCount = (user.inventory && user.inventory['role_card']) || 0;
+        const roleCardsElement = document.getElementById('profile-role-cards');
+        if (roleCardsElement) {
+            roleCardsElement.textContent = roleCardsCount;
+        }
+
     } catch (err) {
         console.error(err);
         alert('Не удалось загрузить данные профиля');

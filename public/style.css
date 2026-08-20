@@ -884,3 +884,36 @@ ul.room-list-mock {
 .log-close-btn {
     margin-top: auto;
 }
+
+/* Стили для карточки выбора роли и ввода количества */
+.single-card-wrapper {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.role-card-item.compact {
+    max-width: 220px;
+    width: 100%;
+}
+
+.buy-action-box {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.buy-quantity-input {
+    width: 50px;
+    text-align: center;
+    background: #282a45;
+    border: 1px solid #4a507a;
+    color: #fff;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.balance-container {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
