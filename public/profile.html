@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mafia Online - Профиль</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+    <!-- Шапка сайта -->
+    <header>
+        <h1 class="dancing-title">
+            <span class="char c-1">М</span>
+            <span class="char c-2 has-hat">А</span>
+            <span class="char c-3 has-tie">Ф</span>
+            <span class="char c-4 has-glasses">И</span>
+            <span class="char c-5">Я</span>
+        </h1>
+        <div id="user-block">
+            <button onclick="window.location.href='/'">Назад в клуб</button>
+        </div>
+    </header>
+
+    <hr>
+
+    <!-- Основной контент профиля -->
+    <main>
+        <section>
+            <div class="section-title">
+                <span>👤 Личное дело игрока</span>
+            </div>
+            
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 8px; margin-top: 15px;">
+                <p style="margin-bottom: 10px;"><strong>ID в системе:</strong> <span id="profile-id" style="color: #1dd1a1;">загрузка...</span></p>
+                <p style="margin-bottom: 10px;"><strong>Позывной (Логин):</strong> <span id="profile-username" style="color: #ff6b6b;">загрузка...</span></p>
+                <p style="margin-bottom: 0;"><strong>Общак (Баланс):</strong> <span id="profile-balance">0</span> 💰</p>
+            </div>
+        </section>
+
+        <!-- Блок инвентаря -->
+        <section style="margin-top: 20px;">
+            <div class="section-title">
+                <span>🎒 Инвентарь</span>
+            </div>
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 8px; margin-top: 15px;">
+                <p style="margin-bottom: 0;">
+                    <strong>🎴 Карточки выбора роли:</strong> 
+                    <span id="profile-role-cards" style="color: #feca57; font-weight: bold; font-size: 1.1em;">0</span> шт.
+                </p>
+            </div>
+        </section>
+
+        <!-- Блок под будущие достижения -->
+        <section style="margin-top: 20px;">
+            <div class="section-title">
+                <span>🏆 Награды и медали</span>
+            </div>
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 8px; margin-top: 15px; color: #a4b0be; text-align: center;">
+                Здесь пока пусто. Славные дела еще впереди!
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Скрипт загрузки данных профиля -->
+<script src="profile.js"></script>
+</body>
+</html>
