@@ -1,5 +1,5 @@
 const { ROLES, executeRoleAction } = require('./rolesConfig');
-const { startGame, setPhase, startIndividualSpeechPhase, finishSpeechEarly, nominateCandidate, castVote, skipNightPhase } = require('./gameLogic');
+const { startGame, setPhase, startIndividualSpeechPhase, finishSpeechEarly, nominateCandidate, castVote, skipNightPhase, checkNightPhaseEnd } = require('./gameLogic');
 const { getDefaultSettings } = require('./gameSettings');
 const express = require('express');
 const http = require('http');
@@ -627,7 +627,9 @@ io.on('connection', (socket) => {
                 
                 // Проверка завершения ночи, если кто-то вышел во время фазы 5
                 if (room.gameState && room.gameState.phase === 5) {
-                    checkNightPhaseEnd(room);
+                    if (typeof checkNightPhaseEnd === 'function') {
+                        checkNightPhaseEnd(room, io);
+                    }
                 }
 
                 io.to(roomId).emit('updatePlayers', room.players);
@@ -640,7 +642,7 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
 });
