@@ -32,6 +32,8 @@ io.use((socket, next) => {
 
 const rooms = {};
 
+const ADMIN_USERS = ['111'];
+
 // Вспомогательные функции работы с таблицей blacklists в БД
 const Blacklist = {
     add: (userId, blockedUserId) => {
@@ -229,6 +231,7 @@ app.get('/api/user/profile', (req, res) => {
 
             res.json({
                 ...user,
+				isAdmin: ADMIN_USERS.includes(user.username),
                 inventory
             });
         });
@@ -237,6 +240,10 @@ app.get('/api/user/profile', (req, res) => {
 
 // Маршрут для админ-панели (начисление валюты)
 app.post('/api/admin/add-balance', (req, res) => {
+    if (!req.session.username || !ADMIN_USERS.includes(req.session.username)) {
+        return res.status(403).json({ error: 'Доступ запрещён' });
+    }
+
     const { userId, amount } = req.body;
     
     db.run(
