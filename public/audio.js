@@ -53,6 +53,8 @@ export const AudioModule = {
         ]
     });
 
+    // Записываем объект сразу, чтобы предотвратить создание дубликатов во время async ожидания микрофона
+    this.peerConnections[targetUserId] = pc;
     this.iceCandidateQueues[targetUserId] = [];
 
     // Гарантируем, что микрофон захвачен перед добавлением треков
@@ -77,10 +79,21 @@ export const AudioModule = {
       }
       audioEl.srcObject = event.streams[0];
       
-      // Принудительный запуск воспроизведения (обход Autoplay Policy)
-      audioEl.play().catch(err => {
-        console.warn('Автовоспроизведение заблокировано браузером. Требуется клик по странице.', err);
-      });
+      // Попытка воспроизведения + автоматический разблок при первом клике/касании по экрану
+      const playAudio = () => {
+        audioEl.play().catch(err => {
+          console.warn('Автовоспроизведение заблокировано браузером. Звук включится после клика по странице.', err);
+          const unlock = () => {
+            audioEl.play().catch(e => console.error('Ошибка воспроизведения:', e));
+            document.removeEventListener('click', unlock);
+            document.removeEventListener('touchstart', unlock);
+          };
+          document.addEventListener('click', unlock);
+          document.addEventListener('touchstart', unlock);
+        });
+      };
+
+      playAudio();
     };
 
     pc.onicecandidate = (event) => {
@@ -92,7 +105,6 @@ export const AudioModule = {
       }
     };
 
-    this.peerConnections[targetUserId] = pc;
     return pc;
   },
 
