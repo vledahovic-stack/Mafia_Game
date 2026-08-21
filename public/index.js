@@ -51,25 +51,45 @@ async function claimDailyBonus() {
     }
 }
 
+function switchAuthTab(tab) {
+    const loginContent = document.getElementById('auth-login-content');
+    const registerContent = document.getElementById('auth-register-content');
+    const tabLoginBtn = document.getElementById('tab-btn-login');
+    const tabRegisterBtn = document.getElementById('tab-btn-register');
+
+    if (tab === 'login') {
+        loginContent.style.display = 'block';
+        registerContent.style.display = 'none';
+        tabLoginBtn.classList.add('active');
+        tabRegisterBtn.classList.remove('active');
+    } else {
+        loginContent.style.display = 'none';
+        registerContent.style.display = 'block';
+        tabRegisterBtn.classList.add('active');
+        tabLoginBtn.classList.remove('active');
+    }
+}
+
 function setLoggedInUser(username) {
-    document.getElementById('user-name').textContent = username;
-    document.getElementById('btn-login').style.display = 'none';
-    document.getElementById('btn-register').style.display = 'none';
+    // // document.getElementById('user-name').textContent = username;
+    const authBtn = document.getElementById('btn-auth');
+    if (authBtn) authBtn.style.display = 'none';
+
     document.getElementById('btn-logout').style.display = 'inline-block';
     
     const bonusBtn = document.getElementById('btn-daily-bonus');
     if (bonusBtn) {
         bonusBtn.style.display = 'inline-block';
-        bonusBtn.onclick = claimDailyBonus; // Привязываем клик на кнопку бонуса
+        bonusBtn.onclick = claimDailyBonus;
     }
 
     loadBalance();
 }
 
 function setLoggedOutUser() {
-    document.getElementById('user-name').textContent = 'Гость';
-    document.getElementById('btn-login').style.display = 'inline-block';
-    document.getElementById('btn-register').style.display = 'inline-block';
+    const authBtn = document.getElementById('btn-auth');
+    if (authBtn) authBtn.style.display = 'inline-block';
+
     document.getElementById('btn-logout').style.display = 'none';
     
     const balanceElem = document.getElementById('user-balance');
@@ -234,22 +254,27 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
     const username = inputs[0].value;
     const password = inputs[1].value;
 
-    const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password })
-    });
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ username, password })
+        });
 
-    const result = await response.json();
+        const result = await response.json();
 
-    if (result.success) {
-        localStorage.setItem('username', result.username);
-        setLoggedInUser(result.username);
-        closeModal('modal-login');
-        e.target.reset();
-    } else {
-        alert(result.error || 'Ошибка при входе');
+        if (result.success) {
+            localStorage.setItem('username', result.username);
+            setLoggedInUser(result.username);
+            closeModal('modal-auth'); // Исправлено закрытие нового модального окна
+            e.target.reset();
+        } else {
+            alert(result.error || 'Ошибка при входе');
+        }
+    } catch (err) {
+        console.error('Ошибка входа:', err);
+        alert('Произошла ошибка при отправке данных');
     }
 });
 

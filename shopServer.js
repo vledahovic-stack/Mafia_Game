@@ -1,7 +1,7 @@
 const db = require('./database');
 
 const SHOP_ITEMS = {
-    'role_card': { name: 'Карточка выбора роли', price: 1000 }
+    'role_card': { name: 'Карточка выбора роли', price: 500 }
 };
 
 function setupShopEvents(io, socket) {

@@ -917,3 +917,36 @@ ul.room-list-mock {
     justify-content: flex-end;
     gap: 8px;
 }
+
+/* Переключатель вкладок авторизации */
+.auth-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.auth-tab-btn {
+    background: transparent;
+    border: none;
+    color: #a0aec0;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.auth-tab-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.auth-tab-btn.active {
+    color: #ffffff;
+    background: #e74c3c; /* Или цвет акцента вашей темы */
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+}

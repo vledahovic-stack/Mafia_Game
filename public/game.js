@@ -297,12 +297,14 @@ socket.on('gameStateUpdate', (state) => {
     const stateCompareCopy = {
         phase: state.phase,
         currentSpeaker: state.currentSpeaker,
+        speakerNominations: state.speakerNominations,
         votes: state.votes,
         nightVotes: state.nightVotes,
         sheriffChecks: state.sheriffChecks,
         doctorTarget: state.doctorTarget,
         players: state.players ? state.players.map(p => ({ id: p.id, isAlive: p.isAlive, name: p.username || p.name })) : []
     };
+	
     const currentStateJSON = JSON.stringify(stateCompareCopy);
 
     if (currentStateJSON !== lastStateJSON) {
@@ -364,22 +366,47 @@ function renderGridContent(state) {
         const myName = me ? (me.username || me.name) : username;
         const isMyTurn = state.currentSpeaker === myName || state.currentSpeaker === username;
 
+        // --- ИСПРАВЛЕННЫЙ БЛОК ДЛЯ ФАЗЫ РЕЧИ ---
         if (state.phase === 2 || state.phase === 2.5 || state.phase === 4) {
             if (skipNightBtn) skipNightBtn.style.display = 'none';
             playersGrid.className = 'single-speaker-mode';
 
             const speakerName = state.currentSpeaker;
             const speaker = state.players.find(p => (p.username === speakerName || p.name === speakerName));
-            
+    
             if (speaker) {
                 const card = document.createElement('div');
                 card.className = 'player-card speaker-card';
-                card.innerHTML = `
-                    <div class="player-name">${speaker.username || speaker.name}</div>
-                    <div class="speaker-label">${state.phase === 4 ? 'Последнее слово...' : 'Говорит...'}</div>
-                `;
-                playersGrid.appendChild(card);
-            }
+
+                 // Базовое содержимое карточки
+    card.innerHTML = `
+        <div class="player-name">${speaker.username || speaker.name}</div>
+        <div class="speaker-label">${state.phase === 4 ? 'Последнее слово...' : 'Говорит...'}</div>
+    `;
+    playersGrid.appendChild(card);
+
+    // Выносим плашку номинации отдельным элементом ПОД карточку игрока
+    const currentNomination = state.speakerNominations ? state.speakerNominations[speakerName] : null;
+
+    if (currentNomination) {
+        const nominationBadge = document.createElement('div');
+        nominationBadge.className = 'current-nomination-badge';
+        nominationBadge.style.cssText = `
+            margin-top: 10px;
+            padding: 6px 12px;
+            background: rgba(231, 76, 60, 0.9);
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.95rem;
+            border: 1px solid #c0392b;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            text-align: center;
+        `;
+        nominationBadge.textContent = `Выставляет: ${currentNomination}`;
+        playersGrid.appendChild(nominationBadge);
+    }
+}
 
             const isFirstDay = state.day === 1;
             const allowFirstDayVoting = currentSettings?.rules?.firstDayVoting ?? state.allowFirstDayVoting ?? false;
@@ -538,7 +565,7 @@ function renderGridContent(state) {
                 
                 card.innerHTML = `
                     <div class="player-name">${player.username || player.name}</div>
-                    <div class="player-status">${player.id === null ? 'Офлайн' : (player.isAlive ? 'В игре' : 'Мертв')}</div>
+                    <div class="player-status">${player.id === null ? 'Офлайн' : (player.isAlive ? 'В игре' : 'Исключён')}</div>
                 `;
 
                 if (player.id) {
@@ -617,7 +644,7 @@ function showGameOverModal(winner, players) {
         players.forEach(p => {
             const pName = p.username || p.name;
             const pRole = p.role || 'Мирный житель';
-            const isAliveText = p.isAlive ? '🟢 Жив' : '💀 Мертв';
+            const isAliveText = p.isAlive ? '🟢 Жив' : '😡 Исключён';
             
             let roleIcon = '🍩';
             if (pRole.includes('Мафия')) roleIcon = '🕶️';
@@ -677,17 +704,10 @@ function showNightNewsModal(messageText) {
         newsModal.id = 'night-news-modal';
         newsModal.className = 'modal';
         newsModal.innerHTML = `
-            <div class="modal-content" style="max-width: 400px; padding: 16px;">
-                <div class="night-dossier-card">
-                    <div class="dossier-header">
-                        <span class="dossier-title">📁 Сводка ночи</span>
-                        <span class="dossier-stamp">Секретно</span>
-                    </div>
-                    <div class="dossier-body">
-                        <div id="night-news-text" class="dossier-line" style="margin: 8px 0; text-align: left;"></div>
-                    </div>
-                </div>
-                <button id="night-news-confirm-btn" style="margin-top: 15px; width: 100%;">Ознакомлен</button>
+            <div class="modal-content">
+                <h3>Итоги ночи 😴</h3>
+                <div id="night-news-text"></div>
+                <button id="night-news-confirm-btn" style="width: 100%; margin-top: 15px;">Понятно</button>
             </div>
         `;
         document.body.appendChild(newsModal);

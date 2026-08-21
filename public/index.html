@@ -29,11 +29,9 @@
             <span class="char c-9 has-rose">Б</span>
         </h1>
         <div id="user-block">
-            <span id="user-name">Гость</span>
             <span id="user-balance" style="display: none;">💰 <span id="balance-value">0</span></span>
             <button id="btn-daily-bonus" style="display: none;" onclick="claimDailyBonus()">🎁 Бонус</button>
-            <button id="btn-login" onclick="openModal('modal-login')">Войти</button>
-            <button id="btn-register" onclick="openModal('modal-register')">Регистрация</button>
+            <button id="btn-auth" onclick="openModal('modal-auth')">Авторизация</button>
             <button id="btn-logout" style="display: none;">Выйти</button>
         </div>
     </header>
@@ -99,29 +97,36 @@
     </main>
 </div>
 
-<!-- Модальное окно Входа -->
-<div id="modal-login" class="modal">
+<!-- Объединенное модальное окно Авторизации -->
+<div id="modal-auth" class="modal">
     <div class="modal-content">
-        <span class="close" onclick="closeModal('modal-login')">&times;</span>
-        <h3>🕵️ Предъявите документы</h3>
-        <form id="form-login">
-            <input type="text" placeholder="Логин" required>
-            <input type="password" placeholder="Пароль" required>
-            <button type="submit">Пройти контроль</button>
-        </form>
-    </div>
-</div>
+        <span class="close" onclick="closeModal('modal-auth')">&times;</span>
+        
+        <!-- Переключатель вкладок -->
+        <div class="auth-tabs">
+            <button id="tab-btn-login" class="auth-tab-btn active" onclick="switchAuthTab('login')">Вход</button>
+            <button id="tab-btn-register" class="auth-tab-btn" onclick="switchAuthTab('register')">Регистрация</button>
+        </div>
 
-<!-- Модальное окно Регистрации -->
-<div id="modal-register" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal('modal-register')">&times;</span>
-        <h3>🤝 Вступить в сообщество</h3>
-        <form id="form-register">
-            <input type="text" placeholder="Придумайте логин" required>
-            <input type="password" placeholder="Придумайте пароль" required>
-            <button type="submit">Принести присягу</button>
-        </form>
+        <!-- Контент входа -->
+        <div id="auth-login-content" class="auth-tab-content">
+            <h3>🕵️ Предъявите документы</h3>
+            <form id="form-login">
+                <input type="text" placeholder="Логин" required>
+                <input type="password" placeholder="Пароль" required>
+                <button type="submit">Пройти контроль</button>
+            </form>
+        </div>
+
+        <!-- Контент регистрации -->
+        <div id="auth-register-content" class="auth-tab-content" style="display: none;">
+            <h3>🤝 Вступить в сообщество</h3>
+            <form id="form-register">
+                <input type="text" placeholder="Придумайте логин" required>
+                <input type="password" placeholder="Придумайте пароль" required>
+                <button type="submit">Принести присягу</button>
+            </form>
+        </div>
     </div>
 </div>
 

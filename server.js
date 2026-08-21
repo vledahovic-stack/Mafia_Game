@@ -546,12 +546,19 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Новый исправленный вариант:
     socket.on('nominateCandidate', ({ roomId, candidateName }) => {
-        const room = rooms[roomId];
-        if (room) {
-            nominateCandidate(room, io, socket.username, candidateName);
+    const room = rooms[roomId];
+    if (room) {
+        nominateCandidate(room, io, socket.username, candidateName);
+        
+        // Отправляем всем игрокам в комнате обновленное состояние игры (с кандидатами)
+        if (room.gameState) {
+            room.gameState.players = room.players;
+            io.to(roomId).emit('gameStateUpdate', room.gameState);
         }
-    });
+    }
+});
 
     socket.on('castVote', ({ roomId, candidateName }) => {
         const room = rooms[roomId];
