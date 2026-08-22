@@ -268,6 +268,41 @@ socket.on('errorMessage', (msg) => {
     alert(msg);
 });
 
+function updateMicrophoneState(gameState, myPlayer) {
+    if (!myPlayer || myPlayer.isAlive === false || !gameState) {
+        AudioModule.toggleMicrophone(false);
+        return;
+    }
+
+    const myName = myPlayer.username || myPlayer.name;
+    const isMyTurnToSpeak = (gameState.currentSpeaker === myName);
+    const isMafia = (myPlayer.role === 'Мафия' || myPlayer.team === 'Мафия');
+
+    let canSpeak = false;
+
+    switch (gameState.phase) {
+        case 1:
+            canSpeak = true;
+            break;
+
+        case 2:
+        case 2.5:
+        case 4:
+            canSpeak = isMyTurnToSpeak;
+            break;
+
+        case 5:
+            canSpeak = isMafia;
+            break;
+
+        default:
+            canSpeak = false;
+            break;
+    }
+
+    AudioModule.toggleMicrophone(canSpeak);
+}
+
 socket.on('gameStateUpdate', (state) => {
     switchToGameScreen();
 
@@ -312,13 +347,14 @@ socket.on('gameStateUpdate', (state) => {
         renderGridContent(state);
     }
 
+    const me = state.players?.find(p => (p.username === username || p.name === username || p.id === socket.id));
+
     if (skipPhaseBtn) {
         skipPhaseBtn.style.display = state.phase === 1 ? 'inline-block' : 'none';
         if (skipCountSpan) {
             skipCountSpan.textContent = `(${state.skipVotes || 0}/${state.requiredVotes || 0})`;
         }
 
-        const me = state.players?.find(p => (p.username === username || p.name === username || p.id === socket.id));
         const myName = me ? (me.username || me.name) : username;
 
         if (state.votedPlayers && (state.votedPlayers.includes(myName) || state.votedPlayers.includes(username))) {
@@ -331,6 +367,8 @@ socket.on('gameStateUpdate', (state) => {
     if (state.gameLog) {
         renderGameLog(state.gameLog);
     }
+
+    updateMicrophoneState(state, me);
 });
 
 function renderGridContent(state) {
