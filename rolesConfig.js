@@ -1,3 +1,6 @@
+const { XP_CONFIG } = require('./xpConfig');
+const db = require('./database'); // <-- Подключите файл базы данных
+
 const ROLES = {
     CIVILIAN: {
         id: 'civilian',
@@ -49,7 +52,7 @@ const ROLES = {
         }
     },
 
-    SHERIFF: {
+   SHERIFF: {
         id: 'sheriff',
         name: 'Шериф',
         nightHint: 'Чей багажник проверить?',
@@ -71,6 +74,15 @@ const ROLES = {
             if (!targetPlayer) return null;
 
             const isMafia = targetPlayer.role === ROLES.MAFIA.name || targetPlayer.role === 'Мафия';
+
+            // Начисление опыта Шерифу за обнаружение Мафии
+            if (isMafia) {
+                const sheriffPlayer = room.players.find(p => (p.username === speakerUsername || p.name === speakerUsername));
+                if (sheriffPlayer) {
+                    sheriffPlayer.earnedXp = (sheriffPlayer.earnedXp || 0) + XP_CONFIG.POINTS.ROLE_ACTION;
+                }
+            }
+
             const result = isMafia 
                 ? `В багажнике игрока ${targetName} была обнаружена партия несвежих пончиков.` 
                 : `Багажник игрока ${targetName} чист, как слеза: никаких улик, сплошная законопослушность!`;
@@ -82,6 +94,22 @@ const ROLES = {
 
             return result;
         },
+        winCondition: (room) => {
+            const activeEnemies = room.players.filter(p => p.isAlive !== false && (p.team === 'Мафия' || p.role === 'Мафия'));
+            return activeEnemies.length === 0;
+        }
+    },
+	
+	ZHIVCHIK: {
+        id: 'zhivchik',
+        name: 'Живчик',
+        team: 'Мирные',
+        hasNightPhase: false,
+        hasNightAction: false,
+        canChangeDayVote: true,
+        canChangeNightVote: false,
+        lives: 2, // Пассивное свойство: 2 жизни
+        performAction: null,
         winCondition: (room) => {
             const activeEnemies = room.players.filter(p => p.isAlive !== false && (p.team === 'Мафия' || p.role === 'Мафия'));
             return activeEnemies.length === 0;
@@ -166,6 +194,14 @@ function generateRolePool(totalPlayers, roomSettings = {}) {
         pool.push(ROLES.DOCTOR.name);
     }
 
+    // =========================================================
+    // ↓ ИЗМЕНЕНИЕ: Проверка и добавление Живчика в пул ролей ↓
+    // =========================================================
+    if (isEnabled(rolesConfig.zhivchik, false) && ROLES.ZHIVCHIK && pool.length < totalPlayers) {
+        pool.push(ROLES.ZHIVCHIK.name);
+    }
+    // =========================================================
+
     while (pool.length < totalPlayers) {
         pool.push(ROLES.CIVILIAN.name);
     }
@@ -221,6 +257,12 @@ function assignRoles(room) {
 
         const roleObj = Object.values(ROLES).find(r => r.name === player.role);
         player.team = roleObj ? roleObj.team : 'Мирные';
+
+        // =========================================================
+        // ↓ ИЗМЕНЕНИЕ: Назначаем количество жизней (2 для Живчика, 1 для остальных) ↓
+        // =========================================================
+        player.lives = (roleObj && roleObj.lives) ? roleObj.lives : 1;
+        // =========================================================
     });
 }
 
@@ -233,6 +275,32 @@ function checkWinCondition(room, io) {
         if (typeof roleObj.winCondition === 'function') {
             if (roleObj.winCondition(room)) {
                 const winner = roleObj.team;
+
+                // 1. Начисление опыта за победу живым игрокам победившей команды
+                room.players.forEach(player => {
+                    if (player.isAlive !== false) {
+                        const playerRoleObj = Object.values(ROLES).find(r => r.name === player.role);
+                        if (playerRoleObj && playerRoleObj.team === winner) {
+                            player.earnedXp = (player.earnedXp || 0) + XP_CONFIG.POINTS.WIN;
+                        }
+                    }
+                });
+
+                // 2. Сохранение итогового заработанного XP игроков в базу данных (SQLite)
+                room.players.forEach(player => {
+                    const playerName = player.username || player.name;
+                    const amount = player.earnedXp || 0;
+
+                    if (amount > 0 && playerName) {
+                        db.run(
+                            `UPDATE users SET xp = xp + ? WHERE username = ?`,
+                            [amount, playerName],
+                            (err) => {
+                                if (err) console.error(`Ошибка сохранения XP для ${playerName}:`, err.message);
+                            }
+                        );
+                    }
+                });
 
                 if (room.timer) {
                     clearInterval(room.timer);
@@ -252,6 +320,15 @@ function checkWinCondition(room, io) {
                     io.to(room.id).emit('gameStateUpdate', room.gameState);
                     io.to(room.id).emit('gameOver', { winner: winner });
                 }
+
+                // ↓ ДОБАВЛЕНИЕ: Автоматически очищаем победителя через небольшую задержку, 
+                // чтобы клиенты успели показать модальное окно один раз, но при обновлении страницы 
+                // в лобби (когда статус уже waiting) оно больше не всплывало.
+                setTimeout(() => {
+                    if (room.status === 'waiting' && room.gameState) {
+                        room.gameState.winner = null;
+                    }
+                }, 1000);
 
                 return winner;
             }

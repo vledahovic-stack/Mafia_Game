@@ -12,7 +12,8 @@ const defaultSettings = {
         mafia: 1,
         don: 0,
         sheriff: 0,
-        doctor: 0
+        doctor: 0,
+        zhivchik: 0 // ← ИЗМЕНЕНИЕ: добавлена роль по умолчанию
     }
 };
 

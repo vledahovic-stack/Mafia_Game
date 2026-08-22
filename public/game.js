@@ -83,6 +83,26 @@ const roleModal = document.getElementById('role-modal');
 const modalPlayerRole = document.getElementById('modal-player-role');
 const modalConfirmBtn = document.getElementById('modal-confirm-btn');
 
+function switchToGameScreen() {
+    if (lobbyScreen) lobbyScreen.style.display = 'none';
+    if (gameScreen) gameScreen.style.display = 'block';
+
+    const roleCardBlock = document.getElementById('role-card-block');
+    if (roleCardBlock) {
+        roleCardBlock.style.display = 'none';
+    }
+}
+
+function switchToLobbyScreen() {
+    if (lobbyScreen) lobbyScreen.style.display = 'block';
+    if (gameScreen) gameScreen.style.display = 'none';
+
+    const roleCardBlock = document.getElementById('role-card-block');
+    if (roleCardBlock) {
+        roleCardBlock.style.display = 'block';
+    }
+}
+
 socket.on('blacklistUpdated', (updatedBlacklist) => {
     myBlacklist = updatedBlacklist;
 });
@@ -239,6 +259,7 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
 }
 
 socket.on('gameStarted', () => {
+    sessionStorage.removeItem('game_closed_' + roomId);
     switchToGameScreen();
 });
 
@@ -304,11 +325,29 @@ function updateMicrophoneState(gameState, myPlayer) {
 }
 
 socket.on('gameStateUpdate', (state) => {
-    switchToGameScreen();
-
     if (state.settings) {
         currentSettings = state.settings;
     }
+
+    const isGameActive = state.phase && state.phase >= 1 && state.phase <= 5;
+
+    if (state.phase === 6) {
+        if (sessionStorage.getItem('game_closed_' + roomId) === 'true') {
+            switchToLobbyScreen();
+            return;
+        } else {
+            switchToGameScreen();
+            showGameOverModal(state.winner, state.players);
+            return;
+        }
+    }
+
+    if (!isGameActive) {
+        switchToLobbyScreen();
+        return;
+    }
+
+    switchToGameScreen();
 
     if (state.currentSpeaker !== lastSpeaker || state.phase !== 2) {
         myNominatedCandidate = null;
@@ -322,11 +361,6 @@ socket.on('gameStateUpdate', (state) => {
         const minutes = Math.floor((state.timeLeft || 0) / 60);
         const seconds = (state.timeLeft || 0) % 60;
         phaseTimer.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-
-    if (state.phase === 6) {
-        showGameOverModal(state.winner, state.players);
-        return;
     }
 
     const stateCompareCopy = {
@@ -404,7 +438,6 @@ function renderGridContent(state) {
         const myName = me ? (me.username || me.name) : username;
         const isMyTurn = state.currentSpeaker === myName || state.currentSpeaker === username;
 
-        // --- ИСПРАВЛЕННЫЙ БЛОК ДЛЯ ФАЗЫ РЕЧИ ---
         if (state.phase === 2 || state.phase === 2.5 || state.phase === 4) {
             if (skipNightBtn) skipNightBtn.style.display = 'none';
             playersGrid.className = 'single-speaker-mode';
@@ -416,35 +449,33 @@ function renderGridContent(state) {
                 const card = document.createElement('div');
                 card.className = 'player-card speaker-card';
 
-                 // Базовое содержимое карточки
-    card.innerHTML = `
-        <div class="player-name">${speaker.username || speaker.name}</div>
-        <div class="speaker-label">${state.phase === 4 ? 'Последнее слово...' : 'Говорит...'}</div>
-    `;
-    playersGrid.appendChild(card);
+                card.innerHTML = `
+                    <div class="player-name">${speaker.username || speaker.name}</div>
+                    <div class="speaker-label">${state.phase === 4 ? 'Последнее слово...' : 'Говорит...'}</div>
+                `;
+                playersGrid.appendChild(card);
 
-    // Выносим плашку номинации отдельным элементом ПОД карточку игрока
-    const currentNomination = state.speakerNominations ? state.speakerNominations[speakerName] : null;
+                const currentNomination = state.speakerNominations ? state.speakerNominations[speakerName] : null;
 
-    if (currentNomination) {
-        const nominationBadge = document.createElement('div');
-        nominationBadge.className = 'current-nomination-badge';
-        nominationBadge.style.cssText = `
-            margin-top: 10px;
-            padding: 6px 12px;
-            background: rgba(231, 76, 60, 0.9);
-            border-radius: 6px;
-            color: white;
-            font-weight: bold;
-            font-size: 0.95rem;
-            border: 1px solid #c0392b;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            text-align: center;
-        `;
-        nominationBadge.textContent = `Выставляет: ${currentNomination}`;
-        playersGrid.appendChild(nominationBadge);
-    }
-}
+                if (currentNomination) {
+                    const nominationBadge = document.createElement('div');
+                    nominationBadge.className = 'current-nomination-badge';
+                    nominationBadge.style.cssText = `
+                        margin-top: 10px;
+                        padding: 6px 12px;
+                        background: rgba(231, 76, 60, 0.9);
+                        border-radius: 6px;
+                        color: white;
+                        font-weight: bold;
+                        font-size: 0.95rem;
+                        border: 1px solid #c0392b;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                        text-align: center;
+                    `;
+                    nominationBadge.textContent = `Выставляет: ${currentNomination}`;
+                    playersGrid.appendChild(nominationBadge);
+                }
+            }
 
             const isFirstDay = state.day === 1;
             const allowFirstDayVoting = currentSettings?.rules?.firstDayVoting ?? state.allowFirstDayVoting ?? false;
@@ -637,6 +668,11 @@ function renderGameLog(logs) {
 }
 
 function showGameOverModal(winner, players) {
+    if (sessionStorage.getItem('game_closed_' + roomId) === 'true') {
+        switchToLobbyScreen();
+        return;
+    }
+
     let gameOverModal = document.getElementById('game-over-modal');
     if (!gameOverModal) {
         gameOverModal = document.createElement('div');
@@ -658,15 +694,9 @@ function showGameOverModal(winner, players) {
         document.body.appendChild(gameOverModal);
 
         document.getElementById('game-over-confirm-btn').onclick = () => {
+            sessionStorage.setItem('game_closed_' + roomId, 'true');
             gameOverModal.style.display = 'none';
-            if (lobbyScreen) lobbyScreen.style.display = 'block';
-            if (gameScreen) gameScreen.style.display = 'none';
-
-            // Показываем блок карточки роли снова в лобби
-            const roleCardBlock = document.getElementById('role-card-block');
-            if (roleCardBlock) {
-                roleCardBlock.style.display = 'block';
-            }
+            switchToLobbyScreen();
         };
     }
 
@@ -777,6 +807,10 @@ function showRoleModal(role) {
             roleClass = 'doctor';
             roleIcon = '🩺💉';
             roleDesc = 'Лечит подозрительные синяки и укусы.';
+        } else if (role.includes('Живчик') || role.includes('zhivchik')) {
+            roleClass = 'zhivchik';
+            roleIcon = '🏃‍♂️🛡️';
+            roleDesc = 'Живчик выдерживает два выстрела перед тем, как выбыть.';
         }
 
         modalPlayerRole.innerHTML = `
@@ -804,6 +838,7 @@ if (openSettingsBtn) {
             document.getElementById('setting-don').checked = !!currentSettings.roles.don;
             document.getElementById('setting-sheriff').checked = !!currentSettings.roles.sheriff;
             document.getElementById('setting-doctor').checked = !!currentSettings.roles.doctor;
+            document.getElementById('setting-zhivchik').checked = !!currentSettings.roles.zhivchik;
         }
         settingsModal.style.display = 'flex';
     });
@@ -832,7 +867,8 @@ if (settingsForm) {
                 extraMafia: parseInt(document.getElementById('setting-extraMafia').value) || 0,
                 don: document.getElementById('setting-don').checked ? 1 : 0,
                 sheriff: document.getElementById('setting-sheriff').checked ? 1 : 0,
-                doctor: document.getElementById('setting-doctor').checked ? 1 : 0
+                doctor: document.getElementById('setting-doctor').checked ? 1 : 0,
+                zhivchik: document.getElementById('setting-zhivchik').checked ? 1 : 0
             }
         };
 
@@ -845,27 +881,9 @@ socket.on('gameEnded', (data) => {
     if (data && data.winner) {
         showGameOverModal(data.winner, data.players);
     } else {
-        if (lobbyScreen) lobbyScreen.style.display = 'block';
-        if (gameScreen) gameScreen.style.display = 'none';
-
-        // Показываем блок карточки роли при сбросе игры в лобби
-        const roleCardBlock = document.getElementById('role-card-block');
-        if (roleCardBlock) {
-            roleCardBlock.style.display = 'block';
-        }
+        switchToLobbyScreen();
     }
 });
-
-function switchToGameScreen() {
-    if (lobbyScreen) lobbyScreen.style.display = 'none';
-    if (gameScreen) gameScreen.style.display = 'block';
-
-    // Скрываем блок карточки роли во время игры
-    const roleCardBlock = document.getElementById('role-card-block');
-    if (roleCardBlock) {
-        roleCardBlock.style.display = 'none';
-    }
-}
 
 if (modalConfirmBtn) {
     modalConfirmBtn.addEventListener('click', () => {

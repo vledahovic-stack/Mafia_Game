@@ -37,39 +37,51 @@
                 <span>👤 Личное дело игрока</span>
             </div>
             
-            <div style="background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 8px; margin-top: 15px;">
-                <p style="margin-bottom: 10px;"><strong>ID в системе:</strong> <span id="profile-id" style="color: #1dd1a1;">загрузка...</span></p>
-                <p style="margin-bottom: 10px;"><strong>Позывной (Логин):</strong> <span id="profile-username" style="color: #ff6b6b;">загрузка...</span></p>
-                <p style="margin-bottom: 0;"><strong>Общак (Баланс):</strong> <span id="profile-balance">0</span> 💰</p>
+            <div class="profile-card">
+                <p class="profile-field"><strong>ID в системе:</strong> <span id="profile-id" class="profile-id-val">загрузка...</span></p>
+                <p class="profile-field"><strong>Позывной (Логин):</strong> <span id="profile-username" class="profile-username-val">загрузка...</span></p>
+                <p class="profile-field"><strong>Общак (Баланс):</strong> <span id="profile-balance">0</span> 💰</p>
+
+                <!-- Блок авторитета (Уровень и XP) -->
+                <div class="profile-xp-section">
+                    <div class="profile-xp-header">
+                        <strong>⭐ Авторитет (Уровень): <span id="profile-level" class="profile-level-val">1</span></strong>
+                        <span id="profile-xp-text" class="profile-xp-text">0 / 10 XP</span>
+                    </div>
+                    <div class="xp-bar-container">
+                        <div id="profile-xp-bar" class="xp-bar-fill"></div>
+                    </div>
+                </div>
             </div>
         </section>
 
         <!-- Кнопка администратора (скрыта по умолчанию) -->
         <button id="admin-panel-btn" 
+                class="btn-admin-panel" 
                 onclick="window.location.href='/admin.html'" 
-                style="display: none; width: 100%; margin-top: 20px; background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%); color: #ffffff; padding: 12px; font-size: 14px; font-weight: bold; border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4); cursor: pointer;">
+                style="display: none;">
             🎩 Панель владельца
         </button>
 
         <!-- Блок инвентаря -->
-        <section style="margin-top: 20px;">
+        <section style="margin-top: 15px;">
             <div class="section-title">
                 <span>🎒 Инвентарь</span>
             </div>
-            <div style="background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 8px; margin-top: 15px;">
-                <p style="margin-bottom: 0;">
+            <div class="profile-card">
+                <p class="profile-field">
                     <strong>🎴 Карточки выбора роли:</strong> 
-                    <span id="profile-role-cards" style="color: #feca57; font-weight: bold; font-size: 1.1em;">0</span> шт.
+                    <span id="profile-role-cards" class="profile-cards-val">0</span> шт.
                 </p>
             </div>
         </section>
 
         <!-- Блок под будущие достижения -->
-        <section style="margin-top: 20px;">
+        <section style="margin-top: 15px;">
             <div class="section-title">
                 <span>🏆 Награды и медали</span>
             </div>
-            <div style="background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 8px; margin-top: 15px; color: #a4b0be; text-align: center;">
+            <div class="profile-card empty-card">
                 Здесь пока пусто. Славные дела еще впереди!
             </div>
         </section>

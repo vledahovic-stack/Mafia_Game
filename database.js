@@ -12,7 +12,8 @@ db.serialize(() => {
             balance INTEGER DEFAULT 0,
             last_login_date TEXT DEFAULT NULL,
             login_streak INTEGER DEFAULT 0,
-            is_admin INTEGER DEFAULT 0
+            is_admin INTEGER DEFAULT 0,
+            xp INTEGER DEFAULT 0
         )
     `);
 
@@ -37,13 +38,14 @@ db.serialize(() => {
             quantity INTEGER DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-`    );
+    `);
 
     const alterQueries = [
         `ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 0`,
         `ALTER TABLE users ADD COLUMN last_login_date TEXT DEFAULT NULL`,
         `ALTER TABLE users ADD COLUMN login_streak INTEGER DEFAULT 0`,
-        `ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`
+        `ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`,
+        `ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0`
     ];
 
     alterQueries.forEach(query => {

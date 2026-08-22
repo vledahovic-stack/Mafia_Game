@@ -950,3 +950,104 @@ ul.room-list-mock {
     background: #e74c3c; /* Или цвет акцента вашей темы */
     box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
 }
+
+/* ==========================================
+   Стили страницы Профиля (Личное дело)
+   ========================================== */
+
+/* Основная карточка профиля и инвентаря */
+.profile-card {
+    background: #282a45;
+    border: 2px solid #434978;
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.profile-card.empty-card {
+    color: #a0aec0;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.profile-field {
+    font-size: 0.9rem;
+    color: #f1f5f9;
+}
+
+.profile-id-val {
+    color: #1dd1a1;
+    font-weight: bold;
+}
+
+.profile-username-val {
+    color: #ff6b6b;
+    font-weight: bold;
+}
+
+.profile-cards-val {
+    color: #feca57;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* Блок уровня и шкалы опыта */
+.profile-xp-section {
+    border-top: 1px solid #434978;
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.profile-xp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+.profile-level-val {
+    color: #feca57;
+    font-weight: bold;
+}
+
+.profile-xp-text {
+    color: #a0aec0;
+    font-size: 0.8rem;
+}
+
+.xp-bar-container {
+    width: 100%;
+    background: #1e2038;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 12px;
+    border: 1px solid #4a507a;
+}
+
+.xp-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff9f43 0%, #feca57 100%);
+    transition: width 0.4s ease;
+    border-radius: 10px;
+}
+
+/* Кнопка панели владельца */
+.btn-admin-panel {
+    width: 100%;
+    margin-top: 16px;
+    background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+    color: #ffffff;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
+    cursor: pointer;
+}

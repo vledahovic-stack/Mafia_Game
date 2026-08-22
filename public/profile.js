@@ -1,38 +1,80 @@
+// Вспомогательная функция для расчета уровня и прогресса опыта
+function calculateLevel(totalXp = 0) {
+    let level = 1;
+    let requiredForNext = 10; // XP для первого уровня
+    let currentXp = totalXp;
+
+    // Расчет уровня с возрастанием сложности (каждый уровень требует на 10 XP больше)
+    while (currentXp >= requiredForNext) {
+        currentXp -= requiredForNext;
+        level++;
+        requiredForNext = level * 10;
+    }
+
+    const progress = Math.floor((currentXp / requiredForNext) * 100);
+
+    return {
+        level,
+        currentXp,
+        requiredForNext,
+        progress
+    };
+}
+
 async function loadProfile() {
     try {
-        const response = await fetch('/api/user/profile'); //[cite: 3]
+        const response = await fetch('/api/user/profile');
         if (!response.ok) {
-            if (response.status === 401) { //[cite: 3]
-                alert('Пожалуйста, войдите в систему'); //[cite: 3]
-                window.location.href = '/'; //[cite: 3]
-                return; //[cite: 3]
+            if (response.status === 401) {
+                alert('Пожалуйста, войдите в систему');
+                window.location.href = '/';
+                return;
             }
-            throw new Error('Ошибка сервера'); //[cite: 3]
+            throw new Error(`Ошибка сервера: ${response.status}`);
         }
         
-        const user = await response.json(); //[cite: 3]
+        const user = await response.json();
         
-        document.getElementById('profile-id').textContent = user.id; //[cite: 3]
-        document.getElementById('profile-username').textContent = user.username; //[cite: 3]
-        document.getElementById('profile-balance').textContent = user.balance; //[cite: 3]
+        // Безопасная установка текстовых значений
+        const idElem = document.getElementById('profile-id');
+        if (idElem) idElem.textContent = user.id;
 
-        // Выводим количество карточек выбора роли из инвентаря
-        const roleCardsCount = (user.inventory && user.inventory['role_card']) || 0; //[cite: 3]
-        const roleCardsElement = document.getElementById('profile-role-cards'); //[cite: 3]
-        if (roleCardsElement) { //[cite: 3]
-            roleCardsElement.textContent = roleCardsCount; //[cite: 3]
-        }
+        const nameElem = document.getElementById('profile-username');
+        if (nameElem) nameElem.textContent = user.username;
 
-        // Проверка прав администратора и отображение кнопки админ-панели
+        const balanceElem = document.getElementById('profile-balance');
+        if (balanceElem) balanceElem.textContent = user.balance ?? 0;
+
+        // Расчет Уровня и Опыта
+        const userXp = user.xp || 0;
+        const levelData = calculateLevel(userXp);
+
+        const levelElement = document.getElementById('profile-level');
+        if (levelElement) levelElement.textContent = levelData.level;
+
+        const xpTextElement = document.getElementById('profile-xp-text');
+        if (xpTextElement) xpTextElement.textContent = `${levelData.currentXp} / ${levelData.requiredForNext} XP`;
+
+        const xpBarElement = document.getElementById('profile-xp-bar');
+        if (xpBarElement) xpBarElement.style.width = `${levelData.progress}%`;
+
+        // Инвентарь
+        const roleCardsCount = (user.inventory && user.inventory['role_card']) || 0;
+        const roleCardsElement = document.getElementById('profile-role-cards');
+        if (roleCardsElement) roleCardsElement.textContent = roleCardsCount;
+
+        // Отображение кнопки админ-панели
         const adminBtn = document.getElementById('admin-panel-btn');
         if (adminBtn) {
             adminBtn.style.display = user.isAdmin ? 'block' : 'none';
         }
 
     } catch (err) {
-        console.error(err); //[cite: 3]
-        alert('Не удалось загрузить данные профиля'); //[cite: 3]
+        console.error('Ошибка загрузки профиля:', err);
+        alert('Не удалось загрузить данные профиля');
     }
 }
 
-loadProfile(); //[cite: 3]
+document.addEventListener('DOMContentLoaded', loadProfile);
+
+loadProfile()

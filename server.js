@@ -6,6 +6,13 @@ const http = require('http');
 const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const db = require('./database');
+
+db.run("ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0", (err) => {
+    if (err) {
+        // Колонка уже существует
+    }
+});
+
 const session = require('express-session');
 const { setupShopEvents } = require('./shopServer');
 
@@ -216,22 +223,27 @@ app.get('/api/user/profile', (req, res) => {
 
     const userId = req.session.userId;
 
-    db.get('SELECT id, username, balance FROM users WHERE id = ?', [userId], (err, user) => {
+    // Выбираем данные; если колонка xp не найдена — отдаем 0
+    db.get('SELECT id, username, COALESCE(balance, 0) AS balance, COALESCE(xp, 0) AS xp FROM users WHERE id = ?', [userId], (err, user) => {
         if (err || !user) {
+            console.error('Ошибка получения пользователя из БД:', err);
             return res.status(500).json({ error: 'Ошибка получения профиля' });
         }
 
         db.all('SELECT item_id, quantity FROM inventory WHERE user_id = ?', [userId], (invErr, rows) => {
             const inventory = {};
-            if (rows) {
+            if (rows && Array.isArray(rows)) {
                 rows.forEach(row => {
                     inventory[row.item_id] = row.quantity;
                 });
             }
 
+            // Проверка админа и по никнейму, и по ID
+            const isAdmin = ADMIN_USERS.includes(String(user.id)) || ADMIN_USERS.includes(user.username);
+
             res.json({
                 ...user,
-				isAdmin: ADMIN_USERS.includes(user.username),
+                isAdmin,
                 inventory
             });
         });
@@ -266,41 +278,39 @@ io.on('connection', (socket) => {
     // И только затем инициализируем события магазина
     setupShopEvents(io, socket);
 
-    // Обработчик выбора роли по карточке
-    socket.on('selectRoleCard', ({ role }) => {
-        const roomId = socket.roomId;
-        if (!roomId || !rooms[roomId]) return;
+   // Обработчик выбора роли по карточке
+socket.on('selectRoleCard', ({ role }) => {
+    const roomId = socket.roomId;
+    if (!roomId || !rooms[roomId]) return;
 
-        const room = rooms[roomId];
-        const player = room.players.find(p => p.id === socket.id);
-        if (!player) return;
+    const room = rooms[roomId]; // <-- Объявление переменной room
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player) return;
 
-        const userId = socket.userId || socket.request.session?.userId;
-        if (!userId) {
-            return socket.emit('buyResult', { success: false, message: 'Выберите роль после авторизации' });
+    const userId = socket.userId || socket.request.session?.userId;
+    if (!userId) {
+        return socket.emit('buyResult', { success: false, message: 'Выберите роль после авторизации' });
+    }
+
+    db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [userId, 'role_card'], (err, row) => {
+        if (err || !row || row.quantity <= 0) {
+            return socket.emit('buyResult', { success: false, message: 'У вас нет карточки выбора роли' });
         }
 
-        // Проверяем наличие карточки в БД
-        db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [userId, 'role_card'], (err, row) => {
-            if (err || !row || row.quantity <= 0) {
-                return socket.emit('buyResult', { success: false, message: 'У вас нет карточки выбора роли' });
+        const newQuantity = row.quantity - 1;
+
+        db.run('UPDATE inventory SET quantity = ? WHERE user_id = ? AND item_id = ?', [newQuantity, userId, 'role_card'], (updateErr) => {
+            if (updateErr) {
+                return socket.emit('buyResult', { success: false, message: 'Ошибка использования карточки' });
             }
 
-            const newQuantity = row.quantity - 1;
+            player.desiredRole = role;
 
-            // Списываем 1 карточку из БД
-           db.run('UPDATE inventory SET quantity = ? WHERE user_id = ? AND item_id = ?', [newQuantity, userId, 'role_card'], (updateErr) => {
-                if (updateErr) {
-                    return socket.emit('buyResult', { success: false, message: 'Ошибка использования карточки' });
-                }
-
-                player.desiredRole = role;
-
-                socket.emit('updateCardCount', newQuantity);
-                socket.emit('buyResult', { success: true, message: `Роль "${role}" успешно забронирована на следующий раунд!` });
-            });
+            socket.emit('updateCardCount', newQuantity);
+            socket.emit('buyResult', { success: true, message: `Роль "${role}" успешно забронирована на следующий раунд!` });
         });
     });
+});
 
     socket.on('joinRoom', async ({ roomId, username, userId }) => {
         if (!rooms[roomId]) return;

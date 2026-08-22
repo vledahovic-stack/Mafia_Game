@@ -57,6 +57,11 @@
                 <button onclick="selectDesiredRole('mafia')">Мафия</button>
                 <button onclick="selectDesiredRole('doctor')">Доктор</button>
                 <button onclick="selectDesiredRole('sheriff')">Шериф</button>
+                
+                <!-- ↓ ИЗМЕНЕНИЕ: Кнопка выбора карточки Живчика ↓ -->
+                <button onclick="selectDesiredRole('zhivchik')">Живчик</button>
+                <!-- ============================================ -->
+                
                 <button onclick="closeRoleMenu()" style="background: #555; margin-top: 5px;">Отмена</button>
             </div>
         </div>
@@ -126,6 +131,13 @@
                         <label for="setting-doctor">Доктор</label>
                         <input type="checkbox" id="setting-doctor">
                     </div>
+                    
+                    <!-- ↓ ИЗМЕНЕНИЕ: Чекбокс Живчика в настройках комнаты ↓ -->
+                    <div class="setting-row">
+                        <label for="setting-zhivchik">Живчик</label>
+                        <input type="checkbox" id="setting-zhivchik">
+                    </div>
+                    <!-- ================================================== -->
                 </div>
 
                 <button type="submit" style="margin-top: 15px;">Сохранить</button>

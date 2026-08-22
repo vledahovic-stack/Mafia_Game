@@ -1,4 +1,5 @@
 const { ROLES, assignRoles, checkWinCondition } = require('./rolesConfig');
+const { XP_CONFIG } = require('./xpConfig');
 
 // Логика фаз игры и общего игрового процесса
 
@@ -260,6 +261,25 @@ function tallyVotes(room, io) {
         if (voteCounts[candidate] !== undefined) {
             voteCounts[candidate]++;
         }
+
+        // Начисление опыта за точный дневной голос
+        const voterPlayer = room.players.find(p => (p.username === voter || p.name === voter) && p.isAlive !== false);
+        const candidatePlayer = room.players.find(p => (p.username === candidate || p.name === candidate));
+
+        if (voterPlayer && candidatePlayer) {
+            const mafiaRole = ROLES.MAFIA ? ROLES.MAFIA.name : 'Мафия';
+            const sheriffRole = ROLES.SHERIFF ? ROLES.SHERIFF.name : 'Шериф';
+
+            const isVoterMafia = voterPlayer.role === mafiaRole;
+            const isCandidateMafia = candidatePlayer.role === mafiaRole;
+            const isCandidateSheriff = candidatePlayer.role === sheriffRole;
+
+            if (!isVoterMafia && isCandidateMafia) {
+                voterPlayer.earnedXp = (voterPlayer.earnedXp || 0) + XP_CONFIG.POINTS.CORRECT_VOTE;
+            } else if (isVoterMafia && isCandidateSheriff) {
+                voterPlayer.earnedXp = (voterPlayer.earnedXp || 0) + XP_CONFIG.POINTS.CORRECT_VOTE;
+            }
+        }
     });
 
     let votingSummary = Object.entries(voteCounts)
@@ -356,7 +376,16 @@ function nextDefenseSpeaker(room, io) {
 
 function eliminatePlayer(room, io, candidateName, isFromNight = false) {
     const player = room.players.find(p => p.username === candidateName || p.name === candidateName);
+    
     if (player) {
+        const currentLives = player.lives || 1;
+        
+        if (currentLives > 1) {
+            player.lives = currentLives - 1;
+            return;
+        }
+        
+        player.lives = 0;
         player.isAlive = false;
     }
 
@@ -495,17 +524,45 @@ function endNightPhase(room, io) {
 
     let killedPlayerName = room.gameState.nightTarget || null;
 
+    // Начисление опыта Доктору за успешное спасение
     if (killedPlayerName && room.gameState.doctorTarget === killedPlayerName) {
+        const doctorRole = ROLES.DOCTOR ? ROLES.DOCTOR.name : 'Доктор';
+        const doctor = room.players.find(p => p.isAlive !== false && p.role === doctorRole);
+        if (doctor) {
+            doctor.earnedXp = (doctor.earnedXp || 0) + XP_CONFIG.POINTS.ROLE_ACTION;
+        }
         killedPlayerName = null;
+    }
+
+    // Начисление опыта выжившей Мафии за точный выстрел
+    if (killedPlayerName) {
+        const mafiaRole = ROLES.MAFIA ? ROLES.MAFIA.name : 'Мафия';
+        room.players
+            .filter(p => p.isAlive !== false && p.role === mafiaRole)
+            .forEach(mafia => {
+                mafia.earnedXp = (mafia.earnedXp || 0) + XP_CONFIG.POINTS.ROLE_ACTION;
+            });
     }
 
     room.lastHealedTarget = room.gameState.doctorTarget || null;
 
+    // Проверяем, выживет ли игрок после урона (если это Живчик с 2 жизнями)
+    let willSurvive = false;
+    if (killedPlayerName) {
+        const targetPlayer = room.players.find(p => p.username === killedPlayerName || p.name === killedPlayerName);
+        if (targetPlayer && targetPlayer.lives > 1) {
+            willSurvive = true;
+        }
+    }
+
+    // Формируем текст новостей: если Живчик выжил, для всех пишется "никто не отравился"
+    const newsMessage = (killedPlayerName && !willSurvive)
+        ? `Игрок ${killedPlayerName} съел несвежий пончик и попал в больницу. 🚑`
+        : (room.gameState.doctorTarget ? `Игрок ${room.gameState.doctorTarget} получил клизму и чувствует себя прекрасно!` : 'Сегодня ночью никто не отравился');
+
     const newsData = {
-        killed: killedPlayerName,
-        message: killedPlayerName 
-            ? `Игрок ${killedPlayerName} съел несвежий пончик и попал в больницу. 🚑` 
-            : (room.gameState.doctorTarget ? `Игрок ${room.gameState.doctorTarget} получил клизму и чувствует себя прекрасно!` : 'Сегодня ночью никто не отравился')
+        killed: willSurvive ? null : killedPlayerName,
+        message: newsMessage
     };
 
     if (!room.gameLog) room.gameLog = [];
@@ -520,6 +577,11 @@ function endNightPhase(room, io) {
 
     if (killedPlayerName) {
         eliminatePlayer(room, io, killedPlayerName, true);
+        
+        const targetPlayer = room.players.find(p => p.username === killedPlayerName || p.name === killedPlayerName);
+        if (targetPlayer && targetPlayer.isAlive !== false) {
+            setPhase(room, 1, io);
+        }
     } else {
         setPhase(room, 1, io);
     }
@@ -529,6 +591,7 @@ function startGame(room, io) {
     assignRoles(room);
 
     room.players.forEach(player => {
+        player.earnedXp = 0; // Инициализируем счётчик опыта для этого матча
         if (player.id) {
             io.to(player.id).emit('yourRole', { role: player.role });
         }
