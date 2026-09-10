@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mafia Online - Профиль</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+    <!-- Шапка сайта -->
+    <header>
+        <h1 class="dancing-title">
+            <span class="char c-1">М</span>
+            <span class="char c-2 has-hat">А</span>
+            <span class="char c-3 has-tie">Ф</span>
+            <span class="char c-4 has-glasses">И</span>
+            <span class="char c-5">Я</span>
+            <span style="width: 5px;"></span>
+            <span class="char c-6 has-cigar">К</span>
+            <span class="char c-7">Л</span>
+            <span class="char c-8">У</span>
+            <span class="char c-9 has-rose">Б</span>
+        </h1>
+        <div id="user-block">
+            <button onclick="window.location.href='/'">Назад в клуб</button>
+        </div>
+    </header>
+
+    <hr>
+
+    <!-- Основной контент профиля -->
+    <main>
+        <section>
+            <div class="section-title">
+                <span>👤 Личное дело игрока</span>
+            </div>
+            
+            <div class="profile-card">
+                <p class="profile-field"><strong>ID в системе:</strong> <span id="profile-id" class="profile-id-val">загрузка...</span></p>
+                <p class="profile-field"><strong>Электронная почта:</strong> <span id="profile-email" class="profile-email-val">загрузка...</span></p>
+                <p class="profile-field"><strong>Позывной (Никнейм):</strong> <span id="profile-username" class="profile-username-val">загрузка...</span></p>
+                <p class="profile-field"><strong>Бесплатных смен никнейма:</strong> <span id="profile-free-changes">1</span></p>
+                <p class="profile-field"><strong>Общак (Баланс):</strong> <span id="profile-balance">0</span> 💰</p>
+
+                <!-- Блок смены никнейма -->
+                <div class="nickname-change-section" style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 12px;">
+                    <p style="margin-bottom: 8px; font-size: 14px;"><strong>Сменить никнейм:</strong> <span style="font-size: 12px; color: #a0aec0;">(1-я бесплатно, далее — 100 💰)</span></p>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="new-username-input" placeholder="Новый никнейм" maxlength="20" style="flex: 1; padding: 6px 10px; border-radius: 4px; border: 1px solid #4a5568; background: #1a202c; color: #fff;">
+                        <button id="btn-change-nickname" onclick="changeNickname()" style="padding: 6px 12px; cursor: pointer;">Сохранить</button>
+                    </div>
+                </div>
+
+                <!-- Блок авторитета (Уровень и XP) -->
+                <div class="profile-xp-section" style="margin-top: 15px;">
+                    <div class="profile-xp-header">
+                        <strong>⭐ Авторитет (Уровень): <span id="profile-level" class="profile-level-val">1</span></strong>
+                        <span id="profile-xp-text" class="profile-xp-text">0 / 10 XP</span>
+                    </div>
+                    <div class="xp-bar-container">
+                        <div id="profile-xp-bar" class="xp-bar-fill"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Кнопка администратора (скрыта по умолчанию) -->
+        <button id="admin-panel-btn" 
+                class="btn-admin-panel" 
+                onclick="window.location.href='/admin.html'" 
+                style="display: none;">
+            🎩 Панель владельца
+        </button>
+
+        <!-- Блок инвентаря -->
+        <section style="margin-top: 15px;">
+            <div class="section-title">
+                <span>🎒 Инвентарь</span>
+            </div>
+            <div class="profile-card">
+                <p class="profile-field">
+                    <strong>🎴 Карточки выбора роли:</strong> 
+                    <span id="profile-role-cards" class="profile-cards-val">0</span> шт.
+                </p>
+            </div>
+        </section>
+
+        <!-- Блок под будущие достижения -->
+        <section style="margin-top: 15px;">
+            <div class="section-title">
+                <span>🏆 Награды и медали</span>
+            </div>
+            <div class="profile-card empty-card">
+                Здесь пока пусто. Славные дела еще впереди!
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Скрипт загрузки данных профиля -->
+<script src="profile.js"></script>
+</body>
+</html>
