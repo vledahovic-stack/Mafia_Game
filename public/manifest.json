@@ -15,6 +15,14 @@
   "launch_handler": {
     "client_mode": "focus-existing"
   },
+  "prefer_related_applications": true,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.mafiaonline.game",
+      "id": "com.mafiaonline.game"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
