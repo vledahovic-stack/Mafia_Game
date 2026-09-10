@@ -8,6 +8,13 @@
   "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#000000",
+  "lang": "ru",
+  "categories": [
+    "games"
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
   "icons": [
     {
       "src": "/icon-192.png",
