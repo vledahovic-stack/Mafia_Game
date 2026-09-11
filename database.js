@@ -75,9 +75,16 @@ async function initDb() {
                 user_id INTEGER NOT NULL,
                 item_id TEXT NOT NULL,
                 quantity INTEGER DEFAULT 0,
+                UNIQUE(user_id, item_id),
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
+
+        try {
+            await client.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_item ON inventory(user_id, item_id)`);
+        } catch (e) {
+            // Игнорируем, если индекс уже создан
+        }
 
         // Безопасное добавление новых колонок в уже существующую базу данных
         const alterQueries = [
@@ -156,6 +163,31 @@ const dbWrapper = {
             .catch(err => {
                 if (callback) callback(err);
             });
+    },
+
+    // Методы для инвентаря и сундуков
+    addInventoryItem: function (userId, itemId, quantity = 1, callback) {
+        const sql = `
+            INSERT INTO inventory (user_id, item_id, quantity)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, item_id) 
+            DO UPDATE SET quantity = quantity + EXCLUDED.quantity
+        `;
+        this.run(sql, [userId, itemId, quantity], callback);
+    },
+
+    removeInventoryItem: function (userId, itemId, quantity = 1, callback) {
+        const sql = `
+            UPDATE inventory 
+            SET quantity = quantity - ? 
+            WHERE user_id = ? AND item_id = ? AND quantity >= ?
+        `;
+        this.run(sql, [quantity, userId, itemId, quantity], callback);
+    },
+
+    getUserInventory: function (userId, callback) {
+        const sql = `SELECT item_id, quantity FROM inventory WHERE user_id = ? AND quantity > 0`;
+        this.all(sql, [userId], callback);
     },
 
     on: function (event, listener) {

@@ -32,6 +32,7 @@
         </div>
 
         <div class="single-card-wrapper">
+            <!-- Карточка выбора роли -->
             <div class="role-card-item sheriff compact">
                 <div class="role-icon">🃏</div>
                 <div class="role-name">Карточка выбора роли</div>
@@ -42,6 +43,40 @@
                     <button onclick="buyItem('role_card', document.getElementById('role_card_qty').value)">Купить</button>
                 </div>
             </div>
+
+            <!-- Сундук -->
+            <!-- Бронзовый сундук -->
+<div class="role-card-item compact chest-bronze">
+    <div class="role-icon">🥉</div>
+    <div class="role-name">Бронзовый сундук</div>
+    <div class="role-desc">Базовые награды. Цена: 100 монет</div>
+    <div class="buy-action-box">
+        <input type="number" id="chest_bronze_qty" class="buy-quantity-input" value="1" min="1" max="99">
+        <button onclick="buyItem('chest_bronze', document.getElementById('chest_bronze_qty').value)">Купить</button>
+    </div>
+</div>
+
+<!-- Серебряный сундук -->
+<div class="role-card-item compact chest-silver">
+    <div class="role-icon">🥈</div>
+    <div class="role-name">Серебряный сундук</div>
+    <div class="role-desc">Улучшенные награды. Цена: 250 монет</div>
+    <div class="buy-action-box">
+        <input type="number" id="chest_silver_qty" class="buy-quantity-input" value="1" min="1" max="99">
+        <button onclick="buyItem('chest_silver', document.getElementById('chest_silver_qty').value)">Купить</button>
+    </div>
+</div>
+
+<!-- Золотой сундук -->
+<div class="role-card-item compact chest-gold">
+    <div class="role-icon">🥇</div>
+    <div class="role-name">Золотой сундук</div>
+    <div class="role-desc">Ценные награды и редкие карточки. Цена: 500 монет</div>
+    <div class="buy-action-box">
+        <input type="number" id="chest_gold_qty" class="buy-quantity-input" value="1" min="1" max="99">
+        <button onclick="buyItem('chest_gold', document.getElementById('chest_gold_qty').value)">Купить</button>
+    </div>
+</div>
         </div>
     </div>
 

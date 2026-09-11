@@ -84,6 +84,20 @@
                     <strong>🎴 Карточки выбора роли:</strong> 
                     <span id="profile-role-cards" class="profile-cards-val">0</span> шт.
                 </p>
+                <div class="inventory-item">
+                    <span>🥉 Бронзовые сундуки: <strong id="count-chest_bronze">0</strong></span>
+                    <button onclick="openChest('chest_bronze')">Открыть</button>
+                </div>
+
+                <div class="inventory-item">
+                    <span>🥈 Серебряные сундуки: <strong id="count-chest_silver">0</strong></span>
+                    <button onclick="openChest('chest_silver')">Открыть</button>
+                </div>
+
+                <div class="inventory-item">
+                    <span>🥇 Золотые сундуки: <strong id="count-chest_gold">0</strong></span>
+                    <button onclick="openChest('chest_gold')">Открыть</button>
+                </div>
             </div>
         </section>
 
@@ -97,6 +111,35 @@
             </div>
         </section>
     </main>
+</div>
+
+<div id="chest-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeChestModal()">&times;</span>
+
+        <!-- Экран выбора количества -->
+        <div id="chest-select-view">
+            <h3>📦 Открытие сундуков</h3>
+            <p>Доступно: <span id="modal-available-chests">0</span> шт.</p>
+            
+            <div class="quick-select">
+                <button type="button" onclick="setChestCount(1)">1</button>
+                <button type="button" onclick="setChestCount(10)">10</button>
+                <button type="button" onclick="setChestCount('all')">Открыть все</button>
+            </div>
+
+            <input type="number" id="chest-count-input" min="1" value="1">
+            <button type="button" id="confirm-open-btn" onclick="confirmOpenChest()">Открыть</button>
+        </div>
+
+        <!-- Экран анимации и результата -->
+        <div id="chest-result-view" style="display: none;">
+            <img id="chest-img" src="/chest_closed.png" alt="Сундук" class="chest-image">
+            <h3 id="chest-result-title">Открываем...</h3>
+            <div id="chest-rewards-list"></div>
+            <button type="button" id="close-result-btn" onclick="closeChestModal()" style="display: none;">Забрать</button>
+        </div>
+    </div>
 </div>
 
 <!-- Скрипт загрузки данных профиля -->

@@ -1,7 +1,10 @@
 const db = require('./database');
 
 const SHOP_ITEMS = {
-    'role_card': { name: 'Карточка выбора роли', price: 500 }
+    role_card: { name: 'Карточка выбора роли', price: 500 },
+    chest_bronze: { name: 'Бронзовый сундук', price: 100 },
+    chest_silver: { name: 'Серебряный сундук', price: 250 },
+    chest_gold: { name: 'Золотой сундук', price: 500 }
 };
 
 function setupShopEvents(io, socket) {
@@ -62,13 +65,11 @@ function setupShopEvents(io, socket) {
 
             const newBalance = user.balance - totalPrice;
 
-            // Списываем средства
             db.run('UPDATE users SET balance = ? WHERE id = ?', [newBalance, userId], (updateErr) => {
                 if (updateErr) {
                     return socket.emit('buyResult', { success: false, message: 'Ошибка списания средств' });
                 }
 
-                // Записываем предметы в базу данных
                 db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [userId, itemId], (invErr, row) => {
                     const newQuantity = (row ? row.quantity : 0) + buyCount;
 

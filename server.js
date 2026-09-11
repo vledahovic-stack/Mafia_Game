@@ -34,7 +34,7 @@ io.use((socket, next) => {
 
 const rooms = {};
 
-const ADMIN_USERS = ['111' , 'Инкогнито'];
+const ADMIN_USERS = ['111', 'Инкогнито'];
 
 // Вспомогательные функции работы с таблицей blacklists в БД
 const Blacklist = {
@@ -90,7 +90,6 @@ app.post('/api/register', async (req, res) => {
         return res.status(400).json({ error: 'Заполните все поля' });
     }
 
-    // Простейшая проверка формата email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
         return res.status(400).json({ error: 'Введите корректный адрес электронной почты' });
@@ -98,11 +97,7 @@ app.post('/api/register', async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // Генерация случайного шестизначного ID (от 100000 до 999999)
         const customId = Math.floor(100000 + Math.random() * 900000);
-        
-        // Автоматическая генерация начального никнейма, например "Игрок_100000"
         const defaultUsername = `Игрок_${customId}`;
 
         db.run(
@@ -182,6 +177,7 @@ app.get('/api/user/balance', (req, res) => {
     });
 });
 
+// Ежедневный бонус (с выдачей бронзового сундука на 7-й день)
 app.post('/api/daily-bonus', (req, res) => {
     if (!req.session.userId) {
         return res.status(401).json({ error: 'Не авторизован' });
@@ -200,16 +196,12 @@ app.post('/api/daily-bonus', (req, res) => {
 
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         
-        // 1. Проверяем, продолжается ли серия. Если пропущен день, сбрасываем на 1
         let newStreak = user.last_login_date === yesterday ? (user.login_streak || 0) + 1 : 1;
 
-        // 2. Если прошёл 7-дневный цикл, сбрасываем счетчик обратно на 1
         if (newStreak > 7) {
             newStreak = 1;
         }
 
-        // 3. Расчет награды по дням:
-        // День 1: 15, День 2: 20, День 3: 25, День 4: 30, День 5: 35, День 6: 40, День 7: 45
         const reward = 10 + (newStreak * 5);
 
         db.run(
@@ -219,14 +211,44 @@ app.post('/api/daily-bonus', (req, res) => {
                 if (err) {
                     return res.status(500).json({ error: 'Ошибка при зачислении бонуса' });
                 }
+
+                // На 7-й день серии дополнительно выдаем бронзовый сундук!
+                const gotChest = newStreak === 7;
+                if (gotChest) {
+                    db.addInventoryItem(user.id, 'chest_bronze', 1, (invErr) => {
+                        if (invErr) console.error('Ошибка начисления сундука за 7-й день:', invErr);
+                    });
+                }
+
                 res.json({
                     success: true,
                     reward,
                     newBalance: user.balance + reward,
-                    newStreak
+                    newStreak,
+                    gotChest
                 });
             }
         );
+    });
+});
+
+// Получить полный инвентарь игрока
+app.get('/api/user/inventory', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
+
+    db.getUserInventory(req.session.userId, (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: 'Ошибка базы данных' });
+        }
+        const inventory = {};
+        if (rows && Array.isArray(rows)) {
+            rows.forEach(r => {
+                inventory[r.item_id] = r.quantity;
+            });
+        }
+        res.json({ success: true, inventory });
     });
 });
 
@@ -273,7 +295,7 @@ app.post('/api/user/change-nickname', (req, res) => {
 
     const { newUsername } = req.body;
     const userId = req.session.userId;
-    const RENAME_COST = 100; // Стоимость смены никнейма в игровой валюте после использования бесплатной попытки
+    const RENAME_COST = 100;
 
     if (!newUsername || newUsername.trim().length < 3 || newUsername.trim().length > 20) {
         return res.status(400).json({ error: 'Никнейм должен быть от 3 до 20 символов' });
@@ -295,7 +317,6 @@ app.post('/api/user/change-nickname', (req, res) => {
         }
 
         if (hasFreeChange) {
-            // Бесплатная смена: уменьшаем бесплатный счетчик
             db.run(
                 'UPDATE users SET username = ?, free_nickname_changes = free_nickname_changes - 1 WHERE id = ?',
                 [trimmedUsername, userId],
@@ -308,7 +329,6 @@ app.post('/api/user/change-nickname', (req, res) => {
                 }
             );
         } else {
-            // Платная смена: списываем баланс
             db.run(
                 'UPDATE users SET username = ?, balance = balance - ? WHERE id = ?',
                 [trimmedUsername, RENAME_COST, userId],
@@ -324,7 +344,104 @@ app.post('/api/user/change-nickname', (req, res) => {
     });
 });
 
-// Маршрут для админ-панели (начисление валюты)
+app.post('/api/user/open-chest', (req, res) => {
+    const userId = req.session && req.session.userId;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Необходима авторизация' });
+    }
+
+    const count = Math.max(1, parseInt(req.body.count) || 1);
+    const chestType = req.body.chestType || req.body.itemId || 'chest_bronze';
+
+    const validChests = ['chest_bronze', 'chest_silver', 'chest_gold'];
+    if (!validChests.includes(chestType)) {
+        return res.status(400).json({ success: false, error: 'Некорректный тип сундука' });
+    }
+
+    // Проверяем наличие сундуков выбранного типа
+    db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [userId, chestType], (err, row) => {
+        if (err || !row || row.quantity < count) {
+            return res.status(400).json({ success: false, error: 'Недостаточно сундуков для открытия' });
+        }
+
+        // Списываем сундуки
+        db.run('UPDATE inventory SET quantity = quantity - ? WHERE user_id = ? AND item_id = ? AND quantity >= ?', [count, userId, chestType, count], (updateErr) => {
+            if (updateErr) {
+                return res.status(500).json({ success: false, error: 'Ошибка списания сундуков' });
+            }
+
+            let totalCoins = 0;
+            let totalCards = 0;
+
+            for (let i = 0; i < count; i++) {
+                const rand = Math.random() * 100;
+
+                if (chestType === 'chest_bronze') {
+                    if (rand < 60) {
+                        totalCoins += Math.floor(Math.random() * (100 - 15 + 1)) + 15;
+                    } else if (rand < 90) {
+                        totalCoins += 30;
+                        totalCards += 1;
+                    } else {
+                        totalCoins += 200;
+                        totalCards += 1;
+                    }
+                } else if (chestType === 'chest_silver') {
+                    if (rand < 50) {
+                        totalCoins += Math.floor(Math.random() * (250 - 80 + 1)) + 80;
+                    } else if (rand < 85) {
+                        totalCoins += 80;
+                        totalCards += 1;
+                    } else {
+                        totalCoins += 400;
+                        totalCards += 2;
+                    }
+                } else if (chestType === 'chest_gold') {
+                    if (rand < 40) {
+                        totalCoins += Math.floor(Math.random() * (500 - 200 + 1)) + 200;
+                    } else if (rand < 80) {
+                        totalCoins += 150;
+                        totalCards += 2;
+                    } else {
+                        totalCoins += 750;
+                        totalCards += 3;
+                    }
+                }
+            }
+
+            // Начисляем монеты
+            db.run('UPDATE users SET balance = balance + ? WHERE id = ?', [totalCoins, userId], (coinErr) => {
+                if (coinErr) {
+                    return res.status(500).json({ success: false, error: 'Ошибка начисления монет' });
+                }
+
+                if (totalCards === 0) {
+                    return res.json({
+                        success: true,
+                        openedCount: count,
+                        rewards: { coins: totalCoins, roleCards: 0 }
+                    });
+                }
+
+                // Начисляем карточки ролей
+                db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [userId, 'role_card'], (cardErr, cardRow) => {
+                    if (cardRow) {
+                        db.run('UPDATE inventory SET quantity = quantity + ? WHERE user_id = ? AND item_id = ?', [totalCards, userId, 'role_card']);
+                    } else {
+                        db.run('INSERT INTO inventory (user_id, item_id, quantity) VALUES (?, ?, ?)', [userId, 'role_card', totalCards]);
+                    }
+
+                    return res.json({
+                        success: true,
+                        openedCount: count,
+                        rewards: { coins: totalCoins, roleCards: totalCards }
+                    });
+                });
+            });
+        });
+    });
+});
+
 app.post('/api/admin/add-balance', (req, res) => {
     if (!req.session.username || !ADMIN_USERS.includes(req.session.username)) {
         return res.status(403).json({ error: 'Доступ запрещён' });
@@ -344,47 +461,44 @@ app.post('/api/admin/add-balance', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    // Сначала определяем ID пользователя из сессии
     if (socket.request.session && socket.request.session.userId) {
         socket.userId = socket.request.session.userId;
     }
 
-    // И только затем инициализируем события магазина
     setupShopEvents(io, socket);
 
-   // Обработчик выбора роли по карточке
-socket.on('selectRoleCard', ({ role }) => {
-    const roomId = socket.roomId;
-    if (!roomId || !rooms[roomId]) return;
+    socket.on('selectRoleCard', ({ role }) => {
+        const roomId = socket.roomId;
+        if (!roomId || !rooms[roomId]) return;
 
-    const room = rooms[roomId]; // <-- Объявление переменной room
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player) return;
+        const room = rooms[roomId];
+        const player = room.players.find(p => p.id === socket.id);
+        if (!player) return;
 
-    const userId = socket.userId || socket.request.session?.userId;
-    if (!userId) {
-        return socket.emit('buyResult', { success: false, message: 'Выберите роль после авторизации' });
-    }
-
-    db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [userId, 'role_card'], (err, row) => {
-        if (err || !row || row.quantity <= 0) {
-            return socket.emit('buyResult', { success: false, message: 'У вас нет карточки выбора роли' });
+        const userId = socket.userId || socket.request.session?.userId;
+        if (!userId) {
+            return socket.emit('buyResult', { success: false, message: 'Выберите роль после авторизации' });
         }
 
-        const newQuantity = row.quantity - 1;
-
-        db.run('UPDATE inventory SET quantity = ? WHERE user_id = ? AND item_id = ?', [newQuantity, userId, 'role_card'], (updateErr) => {
-            if (updateErr) {
-                return socket.emit('buyResult', { success: false, message: 'Ошибка использования карточки' });
+        db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [userId, 'role_card'], (err, row) => {
+            if (err || !row || row.quantity <= 0) {
+                return socket.emit('buyResult', { success: false, message: 'У вас нет карточки выбора роли' });
             }
 
-            player.desiredRole = role;
+            const newQuantity = row.quantity - 1;
 
-            socket.emit('updateCardCount', newQuantity);
-            socket.emit('buyResult', { success: true, message: `Роль "${role}" успешно забронирована на следующий раунд!` });
+            db.run('UPDATE inventory SET quantity = ? WHERE user_id = ? AND item_id = ?', [newQuantity, userId, 'role_card'], (updateErr) => {
+                if (updateErr) {
+                    return socket.emit('buyResult', { success: false, message: 'Ошибка использования карточки' });
+                }
+
+                player.desiredRole = role;
+
+                socket.emit('updateCardCount', newQuantity);
+                socket.emit('buyResult', { success: true, message: `Роль "${role}" успешно забронирована на следующий раунд!` });
+            });
         });
     });
-});
 
     socket.on('joinRoom', async ({ roomId, username, userId }) => {
         if (!rooms[roomId]) return;
@@ -395,13 +509,11 @@ socket.on('selectRoleCard', ({ role }) => {
 
         socket.userId = currentUserId;
 
-        // Определяем ведущего
         if (!room.hostUsername) {
             room.hostUsername = clientName;
             room.hostUserId = currentUserId;
         }
 
-        // Проверка: находится ли игрок в черном списке ведущего комнаты
         if (room.hostUserId && currentUserId && room.hostUserId !== currentUserId) {
             try {
                 const isBlocked = await Blacklist.isBlocked(room.hostUserId, currentUserId);
@@ -458,8 +570,7 @@ socket.on('selectRoleCard', ({ role }) => {
 
         socket.emit('room-joined');
         socket.to(roomId).emit('user-joined', { userId: socket.id });
-		
-		// Отправляем актуальное количество карточек игроку при входе в комнату
+
         if (currentUserId) {
             db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [currentUserId, 'role_card'], (err, row) => {
                 const count = (row && row.quantity) ? row.quantity : 0;
@@ -468,53 +579,45 @@ socket.on('selectRoleCard', ({ role }) => {
         }
     });
 
-    // Обработчики для Черного Списка
-   socket.on('addToBlacklist', async ({ targetUserId, roomId }) => {
-    // Определяем ID того, кто блокирует
-    let currentUserId = socket.userId || socket.request.session?.userId;
-    
-    // Если в сессии нет ID, ищем игрока в комнате
-    if (!currentUserId && roomId && rooms[roomId]) {
-        const me = rooms[roomId].players.find(p => p.id === socket.id);
-        if (me) currentUserId = me.userId || me.id;
-    }
-
-    if (!currentUserId || !targetUserId) {
-        console.error('Не удалось определить ID для ЧС:', { currentUserId, targetUserId });
-        return;
-    }
-
-    try {
-        // 1. Сохраняем в базу данных через встроенный модуль Blacklist
-        await Blacklist.add(currentUserId, targetUserId);
-
-        // 2. Достаем обновленный список ЧС и отправляем обратно игроку
-        const updatedList = await Blacklist.getAll(currentUserId);
+    socket.on('addToBlacklist', async ({ targetUserId, roomId }) => {
+        let currentUserId = socket.userId || socket.request.session?.userId;
         
-        socket.emit('blacklistUpdated', updatedList);
+        if (!currentUserId && roomId && rooms[roomId]) {
+            const me = rooms[roomId].players.find(p => p.id === socket.id);
+            if (me) currentUserId = me.userId || me.id;
+        }
 
-        // 3. Авто-исключение, если блокирующий является ведущим комнаты
-        if (roomId && rooms[roomId]) {
-            const room = rooms[roomId];
-            const isHost = socket.username === room.hostUsername || room.hostUserId === currentUserId;
+        if (!currentUserId || !targetUserId) {
+            console.error('Не удалось определить ID для ЧС:', { currentUserId, targetUserId });
+            return;
+        }
 
-            if (isHost) {
-                const targetPlayer = room.players.find(p => String(p.userId) === String(targetUserId) || String(p.id) === String(targetUserId));
-                if (targetPlayer && targetPlayer.id) {
-                    const targetSocket = io.sockets.sockets.get(targetPlayer.id);
-                    if (targetSocket) {
-                        targetSocket.emit('kicked');
-                        targetSocket.leave(roomId);
+        try {
+            await Blacklist.add(currentUserId, targetUserId);
+            const updatedList = await Blacklist.getAll(currentUserId);
+            socket.emit('blacklistUpdated', updatedList);
+
+            if (roomId && rooms[roomId]) {
+                const room = rooms[roomId];
+                const isHost = socket.username === room.hostUsername || room.hostUserId === currentUserId;
+
+                if (isHost) {
+                    const targetPlayer = room.players.find(p => String(p.userId) === String(targetUserId) || String(p.id) === String(targetUserId));
+                    if (targetPlayer && targetPlayer.id) {
+                        const targetSocket = io.sockets.sockets.get(targetPlayer.id);
+                        if (targetSocket) {
+                            targetSocket.emit('kicked');
+                            targetSocket.leave(roomId);
+                        }
+                        room.players = room.players.filter(p => p.id !== targetPlayer.id);
+                        io.to(roomId).emit('updatePlayers', room.players);
                     }
-                    room.players = room.players.filter(p => p.id !== targetPlayer.id);
-                    io.to(roomId).emit('updatePlayers', room.players);
                 }
             }
+        } catch (err) {
+            console.error('Ошибка добавления в ЧС:', err);
         }
-    } catch (err) {
-        console.error('Ошибка добавления в ЧС:', err);
-    }
-});
+    });
 
     socket.on('removeFromBlacklist', async ({ targetUserId }) => {
         const currentUserId = socket.userId || socket.request.session?.userId;
@@ -637,19 +740,16 @@ socket.on('selectRoleCard', ({ role }) => {
         }
     });
 
-    // Новый исправленный вариант:
     socket.on('nominateCandidate', ({ roomId, candidateName }) => {
-    const room = rooms[roomId];
-    if (room) {
-        nominateCandidate(room, io, socket.username, candidateName);
-        
-        // Отправляем всем игрокам в комнате обновленное состояние игры (с кандидатами)
-        if (room.gameState) {
-            room.gameState.players = room.players;
-            io.to(roomId).emit('gameStateUpdate', room.gameState);
+        const room = rooms[roomId];
+        if (room) {
+            nominateCandidate(room, io, socket.username, candidateName);
+            if (room.gameState) {
+                room.gameState.players = room.players;
+                io.to(roomId).emit('gameStateUpdate', room.gameState);
+            }
         }
-    }
-});
+    });
 
     socket.on('castVote', ({ roomId, candidateName }) => {
         const room = rooms[roomId];
@@ -723,7 +823,6 @@ socket.on('selectRoleCard', ({ role }) => {
                 }
                 room.players.sort((a, b) => (a.username === room.hostUsername ? -1 : b.username === room.hostUsername ? 1 : 0));
                 
-                // Проверка завершения ночи, если кто-то вышел во время фазы 5
                 if (room.gameState && room.gameState.phase === 5) {
                     if (typeof checkNightPhaseEnd === 'function') {
                         checkNightPhaseEnd(room, io);

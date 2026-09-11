@@ -21,6 +21,13 @@ function calculateLevel(totalXp = 0) {
     };
 }
 
+// Вспомогательная функция склонения слова "сундук"
+function getChestDeclension(number) {
+    const cases = [2, 0, 1, 1, 1, 2];
+    const titles = ['сундук', 'сундука', 'сундуков'];
+    return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];
+}
+
 async function loadProfile() {
     try {
         const response = await fetch('/api/user/profile', { credentials: 'include' });
@@ -64,10 +71,34 @@ async function loadProfile() {
         const xpBarElement = document.getElementById('profile-xp-bar');
         if (xpBarElement) xpBarElement.style.width = `${levelData.progress}%`;
 
-        // Инвентарь
+        // Инвентарь: карточки ролей
         const roleCardsCount = (user.inventory && user.inventory['role_card']) || 0;
         const roleCardsElement = document.getElementById('profile-role-cards');
         if (roleCardsElement) roleCardsElement.textContent = roleCardsCount;
+
+        // Инвентарь: 3 типа сундуков
+        const bronzeCount = (user.inventory && user.inventory['chest_bronze']) || 0;
+        const silverCount = (user.inventory && user.inventory['chest_silver']) || 0;
+        const goldCount = (user.inventory && user.inventory['chest_gold']) || 0;
+
+        const bronzeElem = document.getElementById('count-chest_bronze');
+        if (bronzeElem) bronzeElem.textContent = bronzeCount;
+
+        const silverElem = document.getElementById('count-chest_silver');
+        if (silverElem) silverElem.textContent = silverCount;
+
+        const goldElem = document.getElementById('count-chest_gold');
+        if (goldElem) goldElem.textContent = goldCount;
+
+        // Поддержка старого элемента общего количества (если он есть)
+        const totalChests = bronzeCount + silverCount + goldCount + ((user.inventory && user.inventory['chest_daily']) || 0);
+        const chestsElement = document.getElementById('profile-chests');
+        if (chestsElement) chestsElement.textContent = totalChests;
+
+        const openBtn = document.getElementById('btn-open-chest');
+        if (openBtn) {
+            openBtn.disabled = totalChests <= 0;
+        }
 
         // Отображение кнопки админ-панели
         const adminBtn = document.getElementById('admin-panel-btn');
@@ -78,6 +109,146 @@ async function loadProfile() {
     } catch (err) {
         console.error('Ошибка загрузки профиля:', err);
         alert('Не удалось загрузить данные профиля');
+    }
+}
+
+// Открытие модального окна
+function openChest(chestType = 'chest_bronze', count) {
+    window.currentChestType = chestType;
+
+    // Если количество передано в функцию, используем его, иначе ищем элемент конкретного типа
+    let availableChests = count;
+    if (availableChests === undefined) {
+        const elem = document.getElementById(`count-${chestType}`) || document.getElementById('profile-chests');
+        availableChests = parseInt(elem ? elem.textContent : '0') || 0;
+    }
+
+    if (availableChests <= 0) {
+        alert('У вас нет доступных сундуков этого типа');
+        return;
+    }
+
+    document.getElementById('modal-available-chests').textContent = availableChests;
+    document.getElementById('chest-count-input').value = 1;
+    
+    document.getElementById('chest-select-view').style.display = 'block';
+    document.getElementById('chest-result-view').style.display = 'none';
+    document.getElementById('chest-modal').style.display = 'flex';
+}
+
+// Закрытие модального окна
+function closeChestModal() {
+    document.getElementById('chest-modal').style.display = 'none';
+    loadProfile(); // Обновляем баланс и инвентарь на странице
+}
+
+// Быстрый выбор количества
+function setChestCount(val) {
+    const availableChests = parseInt(document.getElementById('modal-available-chests').textContent || '0') || 0;
+    const input = document.getElementById('chest-count-input');
+
+    if (val === 'all') {
+        input.value = availableChests;
+    } else {
+        input.value = Math.min(val, availableChests);
+    }
+}
+
+// Подтверждение открытия и показ результата с анимацией
+async function confirmOpenChest() {
+    const chestType = window.currentChestType || 'chest_bronze';
+
+    // Проверяем количество конкретно для текущего открываемого сундука
+    const chestsElement = document.getElementById(`count-${chestType}`) || document.getElementById('profile-chests');
+    const availableChests = parseInt(chestsElement ? chestsElement.textContent : '0') || 0;
+    const input = document.getElementById('chest-count-input');
+    const count = parseInt(input.value);
+
+    // Проверка корректности введенного числа
+    if (isNaN(count) || count < 1) {
+        alert('Укажите корректное число');
+        return;
+    }
+
+    if (count > availableChests) {
+        alert(`Максимально доступно: ${availableChests}`);
+        return;
+    }
+
+    // Скрываем выбор количества и показываем окно анимации/результата
+    document.getElementById('chest-select-view').style.display = 'none';
+    document.getElementById('chest-result-view').style.display = 'block';
+
+    // Находим элементы окна результатов
+    const chestImg = document.getElementById('chest-img');
+    const titleElem = document.getElementById('chest-result-title');
+    const rewardsList = document.getElementById('chest-rewards-list');
+    const closeBtn = document.getElementById('close-result-btn');
+
+    // Устанавливаем закрытый сундук и запускаем анимацию
+    if (chestImg) {
+        chestImg.src = '/chest_closed.png';
+        chestImg.className = 'chest-image chest-animating';
+    }
+    
+    titleElem.textContent = 'Открываем...';
+    rewardsList.innerHTML = '';
+    closeBtn.style.display = 'none';
+
+    try {
+        // Передаем и количество, и тип сундука
+        const response = await fetch('/api/user/open-chest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ count, chestType })
+        });
+
+        const result = await response.json();
+
+        // Задержка 800 мс для проигрывания анимации
+        setTimeout(() => {
+            if (response.ok && result.success) {
+                if (chestImg) {
+                    chestImg.src = '/chest_open.png';
+                    chestImg.className = 'chest-image chest-opened';
+                }
+
+                const opened = result.openedCount || count;
+                titleElem.textContent = `🎉 Вы открыли ${opened} ${getChestDeclension(opened)}!`;
+
+                let html = '';
+                if (result.rewards) {
+                    if (result.rewards.coins) {
+                        html += `<div>💰 Монеты: <strong>+${result.rewards.coins}</strong></div>`;
+                    }
+                    if (result.rewards.roleCards) {
+                        html += `<div>🎴 Карточки роли: <strong>+${result.rewards.roleCards}</strong></div>`;
+                    }
+                } else if (result.message) {
+                    html = `<div>${result.message}</div>`;
+                }
+
+                rewardsList.innerHTML = html || '<div>Пусто</div>';
+                closeBtn.style.display = 'inline-block';
+            } else {
+                if (chestImg) {
+                    chestImg.className = 'chest-image';
+                }
+                titleElem.textContent = '❌ Ошибка';
+                rewardsList.innerHTML = `<div>${result.error || result.message || 'Ошибка открытия'}</div>`;
+                closeBtn.style.display = 'inline-block';
+            }
+        }, 800);
+
+    } catch (err) {
+        console.error('Ошибка открытия сундуков:', err);
+        if (chestImg) {
+            chestImg.className = 'chest-image';
+        }
+        titleElem.textContent = '❌ Ошибка';
+        rewardsList.innerHTML = '<div>Не удалось связаться с сервером</div>';
+        closeBtn.style.display = 'inline-block';
     }
 }
 
