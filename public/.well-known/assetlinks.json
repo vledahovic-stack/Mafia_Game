@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.mafia.online",
+    "sha256_cert_fingerprints": ["C3:0F:A7:0F:C4:09:46:12:BC:4E:6E:30:E8:BE:BE:4D:A7:CC:54:93:EC:89:96:BD:6D:27:C8:21:33:9C:4F:D5"]
+  }
+}]
