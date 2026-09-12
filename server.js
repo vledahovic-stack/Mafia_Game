@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 app.use(express.json());
 
 const sessionMiddleware = session({
@@ -34,7 +34,7 @@ io.use((socket, next) => {
 
 const rooms = {};
 
-const ADMIN_USERS = ['111', 'Инкогнито'];
+const ADMIN_USERS = ['111', 'Inkognito'];
 
 // Вспомогательные функции работы с таблицей blacklists в БД
 const Blacklist = {
