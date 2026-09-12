@@ -32,3 +32,15 @@ async function addBalance() {
         alert('Ошибка при отправке запроса');
     }
 }
+
+// Блокировка масштабирования двухпальцевым жестом на Android
+document.addEventListener('touchmove', function(e) {
+    if (e.touches.length > 1) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+// Блокировка двойного тапа
+document.addEventListener('dblclick', function(e) {
+    e.preventDefault();
+}, { passive: false });
