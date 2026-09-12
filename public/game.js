@@ -25,9 +25,9 @@ function createAudioButton(player, socketId) {
 
     const updateBtnText = (muted) => {
         if (isMe) {
-            btn.textContent = isMicOn ? '🎙️ Микрофон' : '🔇 Выкл';
+            btn.textContent = isMicOn ? '🎙️' : '🔇';
         } else {
-            btn.textContent = muted ? '🔇 Вкл звук' : '🔊 Выкл звук';
+            btn.textContent = muted ? '🔇' : '🔊';
         }
     };
 
