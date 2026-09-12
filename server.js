@@ -34,7 +34,7 @@ io.use((socket, next) => {
 
 const rooms = {};
 
-const ADMIN_USERS = ['111', 'Inkognito'];
+const ADMIN_USERS = ['111', 'Incognito'];
 
 // Вспомогательные функции работы с таблицей blacklists в БД
 const Blacklist = {
