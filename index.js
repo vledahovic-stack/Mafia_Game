@@ -300,9 +300,14 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
     setLoggedOutUser();
 });
 
-document.addEventListener('gesturestart', function(e) {
-    e.preventDefault();
-});
+// Блокировка масштабирования двухпальцевым жестом на Android
+document.addEventListener('touchmove', function(e) {
+    if (e.touches.length > 1) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+// Блокировка двойного тапа
 document.addEventListener('dblclick', function(e) {
     e.preventDefault();
 }, { passive: false });
