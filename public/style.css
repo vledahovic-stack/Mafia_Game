@@ -1251,3 +1251,7 @@ ul.room-list-mock {
 .inventory-item:last-child {
     border-bottom: none;
 }
+
+* {
+    touch-action: pan-x pan-y;
+}
