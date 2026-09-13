@@ -267,12 +267,9 @@ function tallyVotes(room, io) {
         const candidatePlayer = room.players.find(p => (p.username === candidate || p.name === candidate));
 
         if (voterPlayer && candidatePlayer) {
-            const mafiaRole = ROLES.MAFIA ? ROLES.MAFIA.name : 'Мафия';
-            const sheriffRole = ROLES.SHERIFF ? ROLES.SHERIFF.name : 'Шериф';
-
-            const isVoterMafia = voterPlayer.role === mafiaRole;
-            const isCandidateMafia = candidatePlayer.role === mafiaRole;
-            const isCandidateSheriff = candidatePlayer.role === sheriffRole;
+            const isVoterMafia = voterPlayer.team === 'Мафия';
+            const isCandidateMafia = candidatePlayer.team === 'Мафия';
+            const isCandidateSheriff = candidatePlayer.role === (ROLES.SHERIFF ? ROLES.SHERIFF.name : 'Шериф');
 
             if (!isVoterMafia && isCandidateMafia) {
                 voterPlayer.earnedXp = (voterPlayer.earnedXp || 0) + XP_CONFIG.POINTS.CORRECT_VOTE;
@@ -454,8 +451,9 @@ function startNightPhase(room, io) {
 
     room.gameState.nightVotes = {};
     room.gameState.nightTarget = null;
-    room.gameState.maniacTarget = null; // <-- Добавлено
+    room.gameState.maniacTarget = null;
     room.gameState.sheriffChecks = {};
+    room.gameState.donChecks = {}; // <-- Сброс ночной проверки Дона
     room.gameState.doctorHeals = {};
     room.gameState.doctorTarget = null;
 
@@ -484,7 +482,7 @@ function skipNightPhase(room, io, username) {
     if (room.gameState && room.gameState.phase === 5) {
         const player = room.players.find(p => p.username === username || p.name === username);
         
-        const civilianRoleName = ROLES.CIVILIAN ? ROLES.CIVILIAN.name : 'Мирный';
+        const civilianRoleName = ROLES.CIVILIAN ? ROLES.CIVILIAN.name : 'Мирный житель';
         if (player && player.isAlive !== false && player.role !== civilianRoleName) {
             if (!room.gameState.nightSkipVotes.includes(username)) {
                 room.gameState.nightSkipVotes.push(username);
@@ -502,29 +500,149 @@ function skipNightPhase(room, io, username) {
     }
 }
 
+/**
+ * Этап 1 ночного хода Дона: проверка игрока на статус Шерифа (roleAction).
+ * Вызывается только один раз за ночь.
+ * После успешной проверки устанавливает donChecks[username], чтобы
+ * клиент знал, что пора переходить ко второму этапу (выстрелу).
+ */
+function handleRoleAction(room, speakerUsername, roleName, targetName, extraParams = {}) {
+    if (!room || !room.gameState || room.gameState.phase !== 5) return null;
+
+    const player = room.players.find(p => (p.username === speakerUsername || p.name === speakerUsername) && p.isAlive !== false);
+    if (!player) return null;
+
+    const donRoleName = ROLES.DON ? ROLES.DON.name : 'Дон мафии';
+
+    if (roleName === donRoleName) {
+        if (!room.gameState.donChecks) room.gameState.donChecks = {};
+
+        // Если Дон уже сделал проверку в эту ночь — повторная проверка запрещена.
+        // Выстрел обрабатывается отдельной функцией handleDonShot.
+        if (room.gameState.donChecks[speakerUsername]) {
+            return { error: 'Дон уже совершил проверку в эту ночь. Используйте nightAction для выстрела.' };
+        }
+
+        // Делегируем проверку в performAction роли DON.
+        // performAction сам установит donChecks[speakerUsername] при успехе.
+        return ROLES.DON.performAction(room, speakerUsername, targetName, extraParams);
+    }
+
+    const roleKey = Object.keys(ROLES).find(k => ROLES[k].name === roleName);
+    if (roleKey && typeof ROLES[roleKey].performAction === 'function') {
+        return ROLES[roleKey].performAction(room, speakerUsername, targetName, extraParams);
+    }
+
+    return null;
+}
+
+/**
+ * Этап 2 ночного хода Дона: ночной выстрел мафии (nightAction).
+ * Разрешён только после того, как Дон уже совершил проверку (donChecks установлен).
+ * Записывает голос Дона в nightVotes.
+ * В городском режиме: голос Дона имеет приоритет при разногласиях.
+ * В спортивном режиме: убийство только при 100% единогласии.
+ */
+function handleDonShot(room, speakerUsername, targetName) {
+    if (!room || !room.gameState || room.gameState.phase !== 5) return null;
+
+    const player = room.players.find(p =>
+        (p.username === speakerUsername || p.name === speakerUsername) && p.isAlive !== false
+    );
+    if (!player) return null;
+
+    const donRoleName = ROLES.DON ? ROLES.DON.name : 'Дон мафии';
+    if (player.role !== donRoleName) return null;
+
+    if (!room.gameState.donChecks) room.gameState.donChecks = {};
+
+    // Выстрел разрешён только после проверки
+    if (!room.gameState.donChecks[speakerUsername]) {
+        return { error: 'Дон должен сначала сделать проверку (roleAction) перед выстрелом.' };
+    }
+
+    if (!room.gameState.nightVotes) room.gameState.nightVotes = {};
+    room.gameState.nightVotes[speakerUsername] = targetName;
+
+    // Пересчитываем предварительную цель в зависимости от режима игры
+    const gameMode = (room.settings && room.settings.gameMode) ||
+                     (room.settings && room.settings.rules && room.settings.rules.gameMode) ||
+                     'city';
+    const mafiaRoleName = ROLES.MAFIA ? ROLES.MAFIA.name : 'Мафия';
+    const aliveMafia = room.players.filter(p =>
+        p.isAlive !== false &&
+        (p.role === mafiaRoleName || p.role === donRoleName || p.team === 'Мафия')
+    );
+    const votes = aliveMafia
+        .map(p => room.gameState.nightVotes[p.username || p.name])
+        .filter(Boolean);
+    const isUnanimous = votes.length > 0 && votes.every(v => v === votes[0]);
+
+    if (gameMode === 'sport') {
+        const allVoted = votes.length === aliveMafia.length;
+        room.gameState.nightTarget = (allVoted && isUnanimous) ? votes[0] : null;
+    } else {
+        // city: единогласие → убиваем, разногласие → решение за Доном
+        if (isUnanimous) {
+            room.gameState.nightTarget = votes[0];
+        } else {
+            room.gameState.nightTarget = targetName; // голос Дона имеет приоритет
+        }
+    }
+
+    return `Цель для выстрела мафии зафиксирована: ${targetName}`;
+}
+
 function endNightPhase(room, io) {
     room.gameState.day = (room.gameState.day || 1) + 1;
 
-    // 1. Определение цели Мафии
-    const mafiaVotes = Object.values(room.gameState.nightVotes || {});
-    if (mafiaVotes.length > 0) {
-        const voteCounts = {};
-        mafiaVotes.forEach(target => {
-            voteCounts[target] = (voteCounts[target] || 0) + 1;
-        });
+    // 1. Определение цели Мафии (с учетом городского и спортивного режимов)
+    const gameMode = room.settings?.gameMode || 'city';
+    const donRoleName = ROLES.DON ? ROLES.DON.name : 'Дон мафии';
+    const mafiaRoleName = ROLES.MAFIA ? ROLES.MAFIA.name : 'Мафия';
 
-        let maxVotes = 0;
-        let selectedTarget = null;
-        for (const [target, count] of Object.entries(voteCounts)) {
-            if (count > maxVotes) {
-                maxVotes = count;
-                selectedTarget = target;
+    const aliveMafia = room.players.filter(p => p.isAlive !== false && (p.role === mafiaRoleName || p.role === donRoleName || p.team === 'Мафия'));
+    const mafiaVotesMap = room.gameState.nightVotes || {};
+    const votes = aliveMafia.map(p => mafiaVotesMap[p.username || p.name]).filter(Boolean);
+
+    let mafiaTarget = null;
+
+    if (gameMode === 'sport') {
+        // В спортивном режиме требуются голоса ВСЕХ живых мафиози и 100% единогласие
+        const allVoted = votes.length === aliveMafia.length && aliveMafia.length > 0;
+        const isUnanimous = votes.length > 0 && votes.every(v => v === votes[0]);
+        
+        if (allVoted && isUnanimous) {
+            mafiaTarget = votes[0];
+        } else {
+            mafiaTarget = null; // Промах при любом расхождении или недоголосовании
+        }
+    } else {
+        // В городском режиме: при единогласии — убиваем, при разногласиях — решение за Доном
+        const isUnanimous = votes.length > 0 && votes.every(v => v === votes[0]);
+        if (isUnanimous) {
+            mafiaTarget = votes[0];
+        } else {
+            const donPlayer = aliveMafia.find(p => p.role === donRoleName);
+            if (donPlayer && mafiaVotesMap[donPlayer.username || donPlayer.name]) {
+                mafiaTarget = mafiaVotesMap[donPlayer.username || donPlayer.name];
+            } else if (votes.length > 0) {
+                // Если Дона нет или он не проголосовал — большинством голосов
+                const voteCounts = {};
+                votes.forEach(target => { voteCounts[target] = (voteCounts[target] || 0) + 1; });
+                let maxVotes = 0;
+                for (const [target, count] of Object.entries(voteCounts)) {
+                    if (count > maxVotes) {
+                        maxVotes = count;
+                        mafiaTarget = target;
+                    }
+                }
             }
         }
-        room.gameState.nightTarget = selectedTarget;
     }
 
-    const mafiaTarget = room.gameState.nightTarget || null;
+    room.gameState.nightTarget = mafiaTarget;
+
     const maniacTarget = room.gameState.maniacTarget || null;
     const doctorTarget = room.gameState.doctorTarget || null;
 
@@ -549,10 +667,9 @@ function endNightPhase(room, io) {
     if (mafiaTarget && mafiaTarget !== doctorTarget) {
         killedPlayers.push(mafiaTarget);
 
-        // Начисление XP Мафии за точный выстрел
-        const mafiaRole = ROLES.MAFIA ? ROLES.MAFIA.name : 'Мафия';
+        // Начисление XP Мафии и Дону за точный выстрел
         room.players
-            .filter(p => p.isAlive !== false && p.role === mafiaRole)
+            .filter(p => p.isAlive !== false && (p.role === mafiaRoleName || p.role === donRoleName || p.team === 'Мафия'))
             .forEach(mafia => {
                 mafia.earnedXp = (mafia.earnedXp || 0) + XP_CONFIG.POINTS.ROLE_ACTION;
             });
@@ -582,10 +699,8 @@ function endNightPhase(room, io) {
         if (victim) {
             const currentLives = victim.lives || 1;
             if (currentLives > 1) {
-                // Игрок теряет 1 жизнь (например, Живчик), но выживает
                 victim.lives = currentLives - 1;
             } else {
-                // Игрок окончательно погибает
                 victim.lives = 0;
                 victim.isAlive = false;
                 actuallyEliminated.push(targetName);
@@ -626,7 +741,7 @@ function endNightPhase(room, io) {
 
     io.to(room.id).emit('nightNews', newsData);
 
-    // 7. Проверка победы (например, если Маньяк перебил всех)
+    // 7. Проверка победы
     if (checkWinCondition(room, io)) {
         return;
     }
@@ -639,11 +754,35 @@ function endNightPhase(room, io) {
     }
 }
 
+function handleDonCheck(room, donSocketId, targetName) {
+    const targetPlayer = room.players.find(p => (p.username || p.name) === targetName);
+    if (!targetPlayer) return;
+
+    const isSheriff = targetPlayer.role && targetPlayer.role.includes('Шериф');
+    const resultText = isSheriff
+        ? `Игрок ${targetName} — Шериф!`
+        : `Игрок ${targetName} — НЕ Шериф.`;
+
+    // Исправлено: было room.state (несуществующее поле), теперь room.gameState
+    if (!room.gameState) return resultText;
+    if (!room.gameState.donChecks) {
+        room.gameState.donChecks = {};
+    }
+
+    const donPlayer = room.players.find(p => p.id === donSocketId);
+    if (donPlayer) {
+        const donName = donPlayer.username || donPlayer.name;
+        room.gameState.donChecks[donName] = { target: targetName, result: resultText };
+    }
+
+    return resultText;
+}
+
 function startGame(room, io) {
     assignRoles(room);
 
     room.players.forEach(player => {
-        player.earnedXp = 0; // Инициализируем счётчик опыта для этого матча
+        player.earnedXp = 0;
         if (player.id) {
             io.to(player.id).emit('yourRole', { role: player.role });
         }
@@ -666,5 +805,8 @@ module.exports = {
     startLastWordPhase,
     startNightPhase,
     skipNightPhase,
+    handleRoleAction,
+    handleDonShot,
+    handleDonCheck,
     endNightPhase
 };

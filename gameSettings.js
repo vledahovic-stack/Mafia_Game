@@ -6,14 +6,15 @@ const defaultSettings = {
     rules: {
         maxPlayers: 10, // от 4 до 16
         firstDayVoting: true,
-        secretVoting: false
+        secretVoting: false,
+        gameMode: 'city' // ← ДОБАВЛЕНО: 'city' (городская) или 'sport' (спортивная)
     },
     roles: {
         mafia: 1,
-        don: 0,
+        don: 0, // 0 или 1 (наличие Дона)
         sheriff: 0,
         doctor: 0,
-        zhivchik: 0 // ← ИЗМЕНЕНИЕ: добавлена роль по умолчанию
+        zhivchik: 0
     }
 };
 

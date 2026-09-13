@@ -1,6 +1,16 @@
 const path = require('path');
 const { ROLES, executeRoleAction } = require('./rolesConfig');
-const { startGame, setPhase, startIndividualSpeechPhase, finishSpeechEarly, nominateCandidate, castVote, skipNightPhase, checkNightPhaseEnd } = require('./gameLogic');
+const {
+    startGame,
+    setPhase,
+    startIndividualSpeechPhase,
+    finishSpeechEarly,
+    nominateCandidate,
+    castVote,
+    skipNightPhase,
+    handleRoleAction,
+    handleDonShot
+} = require('./gameLogic');
 const { getDefaultSettings } = require('./gameSettings');
 const express = require('express');
 const http = require('http');
@@ -757,21 +767,60 @@ io.on('connection', (socket) => {
             castVote(room, io, socket.username, candidateName);
         }
     });
+	
+    socket.on('roleAction', ({ roomId, roleName, targetName }) => {
+        const room = rooms[roomId];
+        if (!room || !room.gameState) return;
+
+        const player = room.players.find(p => p.username === socket.username || p.name === socket.username);
+        if (!player || player.isAlive === false || !player.role) return;
+
+        // Для Дона roleAction — это ТОЛЬКО этап 1 (проверка на Шерифа).
+        // Этап 2 (выстрел) обрабатывается через nightAction -> handleDonShot.
+        const result = handleRoleAction(room, socket.username, player.role, targetName);
+
+        if (result && typeof result === 'string') {
+            // Успешная проверка — отправляем результат только инициатору
+            socket.emit('actionResult', { target: targetName, result });
+        } else if (result && typeof result === 'object' && result.error) {
+            // Ошибка (например, повторная проверка) — уведомляем инициатора
+            socket.emit('errorMessage', result.error);
+        }
+
+        // Обновляем состояние у всех: donChecks теперь заполнен — UI перейдёт к этапу 2
+        room.gameState.players = room.players;
+        io.to(roomId).emit('gameStateUpdate', room.gameState);
+    });
 
     socket.on('nightAction', ({ roomId, targetName }) => {
         const room = rooms[roomId];
-        if (room && room.gameState) {
-            const player = room.players.find(p => p.username === socket.username || p.name === socket.username);
-            if (player && player.isAlive !== false && player.role) {
-                const result = executeRoleAction(player.role, room, socket.username, targetName);
+        if (!room || !room.gameState) return;
 
-                if (result !== null && result !== undefined) {
-                    socket.emit('actionResult', { target: targetName, result: result });
-                }
+        const player = room.players.find(p => p.username === socket.username || p.name === socket.username);
+        if (!player || player.isAlive === false || !player.role) return;
 
-                io.to(roomId).emit('gameStateUpdate', room.gameState);
+        const donRoleName = ROLES.DON ? ROLES.DON.name : 'Дон мафии';
+        let result = null;
+
+        if (player.role === donRoleName) {
+            // Этап 2 Дона: выстрел (ночная акция мафии)
+            result = handleDonShot(room, socket.username, targetName);
+            if (result && typeof result === 'object' && result.error) {
+                socket.emit('errorMessage', result.error);
+                return;
+            }
+        } else {
+            // Для всех остальных ролей (Мафия, Доктор, Маньяк)
+            result = handleRoleAction(room, socket.username, player.role, targetName);
+            if (result && typeof result === 'object' && result.error) {
+                socket.emit('errorMessage', result.error);
+                return;
             }
         }
+
+        // Обновляем состояние всей комнате
+        room.gameState.players = room.players;
+        io.to(roomId).emit('gameStateUpdate', room.gameState);
     });
 
     socket.on('skipNightPhase', ({ roomId }) => {

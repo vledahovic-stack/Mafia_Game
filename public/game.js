@@ -15,6 +15,9 @@ let lastPhase = null;
 let lastSpeakerName = null;
 let lastStateJSON = '';
 
+// Флаг: сделал ли Дон проверку в текущую ночь (обновляется через actionResult и сбрасывается при старте ночи)
+let donAlreadyChecked = false;
+
 function createAudioButton(player, socketId) {
     const isMe = (player.id === socketId);
     const btn = document.createElement('button');
@@ -278,7 +281,19 @@ socket.on('yourRole', (data) => {
 });
 
 socket.on('actionResult', ({ target, result }) => {
-    showActionResultModal(target, result);
+    // Устанавливаем флаг: Дон совершил проверку, теперь ждёт этап 2
+    donAlreadyChecked = true;
+
+    // Показываем результат проверки (не показываем для подтверждения выстрела)
+    if (result && !result.toLowerCase().includes('выстрел')) {
+        showActionResultModal(target, result);
+    }
+
+    // Гарантируем, что nightModal остаётся видимым и активным для второго действия
+    const nightModal = document.getElementById('nightModal');
+    if (nightModal) {
+        nightModal.style.display = 'block';
+    }
 });
 
 socket.on('nightNews', (data) => {
@@ -349,6 +364,17 @@ socket.on('gameStateUpdate', (state) => {
 
     switchToGameScreen();
 
+    // Сбрасываем флаг этапа я новой ночь если donChecks пустой
+    // (сервер сбрасывает donChecks при старте ночи в startNightPhase)
+    if (state.phase === 5) {
+        const myName = username;
+        const checks = state.donChecks;
+        const hasDonCheck = checks && (checks[myName] || Object.keys(checks).length > 0);
+        if (!hasDonCheck) {
+            donAlreadyChecked = false;
+        }
+    }
+
     if (state.currentSpeaker !== lastSpeaker || state.phase !== 2) {
         myNominatedCandidate = null;
         lastSpeaker = state.currentSpeaker;
@@ -372,6 +398,7 @@ socket.on('gameStateUpdate', (state) => {
         maniacTarget: state.maniacTarget, // <-- Добавлено
         sheriffChecks: state.sheriffChecks,
         doctorTarget: state.doctorTarget,
+        donChecks: state.donChecks,
         players: state.players ? state.players.map(p => ({ id: p.id, isAlive: p.isAlive, name: p.username || p.name })) : []
     };
 
@@ -579,10 +606,32 @@ function renderGridContent(state) {
                 playersGrid.className = 'voting-mode';
                 
                 let hintText = '';
-                if (myRole.includes('Шериф')) hintText = 'Чей багажник проверить?';
-                else if (myRole.includes('Мафия') || myRole.includes('Дон')) hintText = 'Кого угостить несвежим пончиком?';
-                else if (myRole.includes('Доктор')) hintText = 'Кого отправить на клизму?';
-                else if (myRole.includes('Маньяк') || myRole.includes('maniac')) hintText = 'Кого выбрать в качестве ночной жертвы?';
+                const myRoleLower = (myRole || '').toLowerCase();
+
+                // Проверяем, сделал ли уже Дон проверку в эту ночь
+                // (используем модульную переменную donAlreadyChecked, обновляемую через actionResult)
+                if (myRoleLower.includes('дон')) {
+                    const checks = state.donChecks;
+                    if (checks && (checks[myName] || checks[username])) {
+                        donAlreadyChecked = true;
+                    }
+                }
+
+                if (myRoleLower.includes('шериф')) {
+                    hintText = 'Чей багажник проверить?';
+                } else if (myRoleLower.includes('дон')) {
+                    if (!donAlreadyChecked) {
+                        hintText = '🎩 Шаг 1: Кого проверить на шерифство? (Первый клик — проверка)';
+                    } else {
+                        hintText = '🔫 Шаг 2: Выберите цель для ночного выстрела мафии:';
+                    }
+                } else if (myRoleLower.includes('мафия')) {
+                    hintText = 'Кого угостить несвежим пончиком?';
+                } else if (myRoleLower.includes('доктор')) {
+                    hintText = 'Кого отправить на клизму?';
+                } else if (myRoleLower.includes('маньяк') || myRoleLower.includes('maniac')) {
+                    hintText = 'Кого выбрать в качестве ночной жертвы?';
+                }
 
                 if (hintText) {
                     const hintBox = document.createElement('div');
@@ -592,7 +641,7 @@ function renderGridContent(state) {
                 }
 
                 let selectablePlayers = state.players.filter(player => player.isAlive !== false);
-                if (myRole.includes('Шериф')) {
+                if (myRoleLower.includes('шериф')) {
                     selectablePlayers = selectablePlayers.filter(player => (player.username || player.name) !== myName);
                 }
 
@@ -601,29 +650,87 @@ function renderGridContent(state) {
                     const card = document.createElement('div');
 
                     let isTargeted = false;
-                    const myRoleLower = (myRole || '').toLowerCase();
+                    let targetStatusText = 'Нажмите для выбора';
 
-                    if (myRoleLower.includes('шериф') && state.sheriffChecks && (state.sheriffChecks[myName]?.target === pName || state.sheriffChecks[username]?.target === pName)) {
-                        isTargeted = true;
-                    } else if ((myRoleLower.includes('мафия') || myRoleLower.includes('дон')) && state.nightVotes && (state.nightVotes[myName] === pName || state.nightVotes[username] === pName)) {
-                        isTargeted = true;
-                    } else if (myRoleLower.includes('доктор') && (state.doctorTarget === pName || (state.doctorHeals && (state.doctorHeals[myName] === pName || state.doctorHeals[username] === pName)))) {
-                        isTargeted = true;
-                    } else if ((myRoleLower.includes('маньяк') || myRoleLower.includes('maniac')) && state.maniacTarget === pName) {
-                        isTargeted = true;
+                    // Определяем режим игры для скрытия/показа чужих выстрелов
+                    const gameMode = currentSettings?.rules?.gameMode ||
+                                     currentSettings?.gameMode || 'city';
+                    const isSportMode = gameMode === 'sport';
+
+                    if (myRoleLower.includes('шериф')) {
+                        if (state.sheriffChecks && (state.sheriffChecks[myName]?.target === pName || state.sheriffChecks[username]?.target === pName)) {
+                            isTargeted = true;
+                            targetStatusText = 'Цель проверена ✓';
+                        }
+                    } else if (myRoleLower.includes('дон')) {
+                        const isMafiaTarget = state.nightVotes &&
+                            (state.nightVotes[myName] === pName || state.nightVotes[username] === pName);
+                        const isDonChecked = state.donChecks &&
+                            (state.donChecks[myName]?.target === pName || state.donChecks[username]?.target === pName);
+
+                        if (!donAlreadyChecked) {
+                            // Этап 1: показываем, кого проверили раньше (в текущую ночь не должно быть)
+                            if (isDonChecked) {
+                                isTargeted = true;
+                                targetStatusText = 'Проверен ✓';
+                            }
+                        } else {
+                            // Этап 2: выстрел
+                            if (isDonChecked) {
+                                targetStatusText = 'Проверен (ранее) 🔍';
+                            }
+                            if (isMafiaTarget) {
+                                isTargeted = true;
+                                targetStatusText = 'Цель выстрела 🔫';
+                            }
+                        }
+                    } else if (myRoleLower.includes('мафия')) {
+                        const myVote = state.nightVotes &&
+                            (state.nightVotes[myName] === pName || state.nightVotes[username] === pName);
+                        if (myVote) {
+                            isTargeted = true;
+                            targetStatusText = 'Цель выбрана ✓';
+                        }
+                        // В городском режиме показываем общую цель мафии
+                        if (!isSportMode && !myVote && state.nightVotes) {
+                            const allVotes = Object.values(state.nightVotes);
+                            if (allVotes.length > 0 && allVotes.every(v => v === pName)) {
+                                targetStatusText = 'Согласие 🎯';
+                            }
+                        }
+                    } else if (myRoleLower.includes('доктор')) {
+                        if (state.doctorTarget === pName || (state.doctorHeals && (state.doctorHeals[myName] === pName || state.doctorHeals[username] === pName))) {
+                            isTargeted = true;
+                            targetStatusText = 'Цель выбрана ✓';
+                        }
+                    } else if (myRoleLower.includes('маньяк') || myRoleLower.includes('maniac')) {
+                        if (state.maniacTarget === pName) {
+                            isTargeted = true;
+                            targetStatusText = 'Цель выбрана ✓';
+                        }
                     }
-  
+
                     card.className = `voting-card ${isTargeted ? 'selected' : ''}`;
-                    
-                    const statusText = isTargeted ? 'Цель выбрана ✓' : 'Нажмите для выбора';
 
                     card.innerHTML = `
                         <div class="cand-name">${pName}</div>
-                        <div class="vote-count">${statusText}</div>
+                        <div class="vote-count">${targetStatusText}</div>
                     `;
 
                     card.onclick = () => {
-                       socket.emit('nightAction', { roomId, targetName: pName });
+                        if (myRoleLower.includes('дон')) {
+                            if (!donAlreadyChecked) {
+                                // Этап 1: отправляем roleAction (проверка на Шерифа)
+                                socket.emit('roleAction', { roomId, roleName: 'Дон мафии', targetName: pName });
+                            } else {
+                                // Этап 2: отправляем nightAction (выстрел мафии)
+                                socket.emit('nightAction', { roomId, targetName: pName });
+                            }
+                        } else if (myRoleLower.includes('шериф')) {
+                            socket.emit('roleAction', { roomId, roleName: 'Шериф', targetName: pName });
+                        } else {
+                            socket.emit('nightAction', { roomId, targetName: pName });
+                        }
                     };
 
                     playersGrid.appendChild(card);
@@ -722,7 +829,8 @@ function showGameOverModal(winner, players) {
             const isAliveText = p.isAlive ? '🟢 Жив' : '😡 Исключён';
             
             let roleIcon = '🍩';
-            if (pRole.includes('Мафия')) roleIcon = '🕶️';
+            if (pRole.includes('Дон')) roleIcon = '🎩';
+            else if (pRole.includes('Мафия')) roleIcon = '🕶️';
             else if (pRole.includes('Шериф')) roleIcon = '⭐';
             else if (pRole.includes('Доктор')) roleIcon = '🩺';
             else if (pRole.includes('Маньяк') || pRole.includes('maniac')) roleIcon = '🔪';
@@ -754,14 +862,19 @@ function showActionResultModal(target, result) {
             </div>
         `;
         document.body.appendChild(actionModal);
-
-        document.getElementById('action-result-confirm-btn').onclick = () => {
-            actionModal.style.display = 'none';
-        };
     }
 
-    const isMafia = result.includes('пончиков');
-    const resultColor = isMafia ? '#ff6b6b' : '#1dd1a1';
+    document.getElementById('action-result-confirm-btn').onclick = () => {
+        actionModal.style.display = 'none';
+        const nightModal = document.getElementById('nightModal');
+        if (nightModal) {
+            nightModal.style.display = 'block';
+        }
+    };
+
+    const resultLower = (result || '').toLowerCase();
+    const isPositiveFind = resultLower.includes('шериф') || resultLower.includes('пончиков');
+    const resultColor = isPositiveFind ? '#1dd1a1' : '#ff6b6b';
     
     const resultTextElem = document.getElementById('action-result-text');
     resultTextElem.innerHTML = `
@@ -803,7 +916,11 @@ function showRoleModal(role) {
         let roleIcon = '🍩🥸';
         let roleDesc = 'Просто пришёл поесть бесплатные пончики.';
 
-        if (role.includes('Мафия') || role.includes('Дон')) {
+        if (role.includes('Дон')) {
+            roleClass = 'don';
+            roleIcon = '🎩🕶️';
+            roleDesc = 'Глава мафии. Каждую ночь ищет Шерифа и руководит голосованием мафии.';
+        } else if (role.includes('Мафия')) {
             roleClass = 'mafia';
             roleIcon = '🕶️🔫';
             roleDesc = 'Заказывает пиццу и убирает свидетелей.';
@@ -822,7 +939,7 @@ function showRoleModal(role) {
         } else if (role.includes('Маньяк') || role.includes('maniac')) {
             roleClass = 'maniac';
             roleIcon = '🔪🩸';
-            roleDesc = 'Одиночка. Каждый ночь устраняет одну цель, чтобы остаться последним выжившим.';
+            roleDesc = 'Одиночка. Каждую ночь устраняет одну цель, чтобы остаться последним выжившим.';
         }
 
         modalPlayerRole.innerHTML = `
@@ -843,6 +960,7 @@ if (openSettingsBtn) {
             document.getElementById('setting-individualSpeech').value = currentSettings.timers.individualSpeech;
 
             document.getElementById('setting-maxPlayers').value = currentSettings.rules.maxPlayers;
+            document.getElementById('setting-gameMode').value = currentSettings.rules.gameMode || 'city'; // ← Добавлено
             document.getElementById('setting-firstDayVoting').checked = currentSettings.rules.firstDayVoting;
             document.getElementById('setting-secretVoting').checked = currentSettings.rules.secretVoting;
 
@@ -851,7 +969,7 @@ if (openSettingsBtn) {
             document.getElementById('setting-sheriff').checked = !!currentSettings.roles.sheriff;
             document.getElementById('setting-doctor').checked = !!currentSettings.roles.doctor;
             document.getElementById('setting-zhivchik').checked = !!currentSettings.roles.zhivchik;
-            document.getElementById('setting-maniac').checked = !!currentSettings.roles.maniac; // <-- Добавлено
+            document.getElementById('setting-maniac').checked = !!currentSettings.roles.maniac;
         }
         settingsModal.style.display = 'flex';
     });
@@ -873,6 +991,7 @@ if (settingsForm) {
             },
             rules: {
                 maxPlayers: parseInt(document.getElementById('setting-maxPlayers').value) || 10,
+                gameMode: document.getElementById('setting-gameMode').value, // ← Добавлено
                 firstDayVoting: document.getElementById('setting-firstDayVoting').checked,
                 secretVoting: document.getElementById('setting-secretVoting').checked
             },
@@ -882,7 +1001,7 @@ if (settingsForm) {
                 sheriff: document.getElementById('setting-sheriff').checked ? 1 : 0,
                 doctor: document.getElementById('setting-doctor').checked ? 1 : 0,
                 zhivchik: document.getElementById('setting-zhivchik').checked ? 1 : 0,
-                maniac: document.getElementById('setting-maniac').checked ? 1 : 0 // <-- Добавлено
+                maniac: document.getElementById('setting-maniac').checked ? 1 : 0
             }
         };
 
@@ -977,4 +1096,10 @@ document.addEventListener('touchmove', function(e) {
 // Блокировка двойного тапа
 document.addEventListener('dblclick', function(e) {
     e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('touchstart', function(e) {
+    if (e.touches.length > 1) {
+        e.preventDefault();
+    }
 }, { passive: false });

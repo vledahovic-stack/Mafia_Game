@@ -17,46 +17,129 @@ const ROLES = {
             return activeEnemies.length === 0;
         }
     },
+	
+	DON: {
+    id: 'don',
+    name: 'Дон мафии',
+    nightHint: 'Чей багажник проверить на наличие жетона Шерифа?',
+    team: 'Мафия',
+    hasNightPhase: true,
+    hasNightAction: true,
+    canChangeDayVote: true,
+    canChangeNightVote: true,
+    canSeeTeammates: true,
+
+    /**
+     * Ночное действие Дона (Поиск Шерифа + запись договорки в 1-ю ночь в спортивном режиме)
+     * @param {Object} room - Объект текущей комнаты
+     * @param {string} speakerUsername - Имя игрока (Дона)
+     * @param {string} targetName - Выбранная цель для проверки
+     * @param {Object} extraParams - Дополнительные параметры (например, donOrder в 1-ю ночь)
+     */
+    performAction: (room, speakerUsername, targetName, extraParams = {}) => {
+        if (!room.gameState.donChecks) {
+            room.gameState.donChecks = {};
+        }
+
+        // Если Дон уже делал проверку в эту ночь, запрещаем повторную проверку
+        if (room.gameState.donChecks[speakerUsername]) {
+            return { error: 'Дон уже совершил проверку в эту ночь.' };
+        }
+
+        const targetPlayer = room.players.find(p => (p.username === targetName || p.name === targetName));
+        if (!targetPlayer) return null;
+
+        const isSheriff = targetPlayer.role === ROLES.SHERIFF.name || targetPlayer.role === 'Шериф';
+
+        // Начисление XP Дону за успешное обнаружение Шерифа
+        if (isSheriff) {
+            const donPlayer = room.players.find(p => (p.username === speakerUsername || p.name === speakerUsername));
+            if (donPlayer) {
+                donPlayer.earnedXp = (donPlayer.earnedXp || 0) + XP_CONFIG.POINTS.ROLE_ACTION;
+            }
+        }
+
+        const result = isSheriff
+            ? `Удалось выяснить: Игрок ${targetName} — Шериф!`
+            : `Игрок ${targetName} НЕ является Шерифом.`;
+
+        room.gameState.donChecks[speakerUsername] = {
+            target: targetName,
+            result: result
+        };
+
+        // Если включен Спортивный режим и 1-я ночь — сохраняем порядок отстрела (Договорку)
+        const gameMode = (room.settings && room.settings.gameMode) || 'city';
+        if (gameMode === 'sport' && extraParams && Array.isArray(extraParams.donOrder)) {
+            room.gameState.donOrder = extraParams.donOrder;
+        }
+
+        return result;
+    },
+
+    winCondition: (room) => {
+        return ROLES.MAFIA.winCondition(room);
+    }
+},
 
     MAFIA: {
-        id: 'mafia',
-        name: 'Мафия',
-        nightHint: 'Кого угостить несвежим пончиком?',
-        team: 'Мафия',
-        hasNightPhase: true,
-        hasNightAction: true,
-        canChangeDayVote: true,
-        canChangeNightVote: true,
-        canSeeTeammates: true,
-        performAction: (room, speakerUsername, targetName) => {
-            if (!room.gameState.nightVotes) {
-                room.gameState.nightVotes = {};
-            }
-            room.gameState.nightVotes[speakerUsername] = targetName;
+    id: 'mafia',
+    name: 'Мафия',
+    nightHint: 'Кого угостить несвежим пончиком?',
+    team: 'Мафия',
+    hasNightPhase: true,
+    hasNightAction: true,
+    canChangeDayVote: true,
+    canChangeNightVote: true,
+    canSeeTeammates: true,
+    performAction: (room, speakerUsername, targetName) => {
+        if (!room.gameState.nightVotes) {
+            room.gameState.nightVotes = {};
+        }
+        room.gameState.nightVotes[speakerUsername] = targetName;
 
-            const aliveMafia = room.players.filter(p => p.isAlive !== false && (p.team === 'Мафия' || p.role === 'Мафия'));
-            const votes = aliveMafia.map(p => room.gameState.nightVotes[p.username || p.name]);
+        const gameMode = (room.settings && room.settings.gameMode) || 'city';
+        const aliveMafia = room.players.filter(p => p.isAlive !== false && (p.team === 'Мафия' || p.role === 'Мафия'));
+        const votes = aliveMafia.map(p => room.gameState.nightVotes[p.username || p.name]);
 
-            const firstVote = votes[0];
-            const isUnanimous = votes.length > 0 && votes.every(v => v && v === firstVote);
+        const firstVote = votes[0];
+        const isUnanimous = votes.length > 0 && votes.every(v => v && v === firstVote);
 
+        if (gameMode === 'city') {
+            // --- ГОРОДСКОЙ РЕЖИМ ---
             if (isUnanimous) {
+                room.gameState.nightTarget = firstVote;
+            } else {
+                // Если нет единогласия, ищем голос Дона
+                const donPlayer = aliveMafia.find(p => p.role === ROLES.DON.name || p.role === 'Дон мафии');
+                if (donPlayer) {
+                    const donVote = room.gameState.nightVotes[donPlayer.username || donPlayer.name];
+                    room.gameState.nightTarget = donVote || null;
+                } else {
+                    room.gameState.nightTarget = null;
+                }
+            }
+        } else if (gameMode === 'sport') {
+            // --- СПОРТИВНЫЙ РЕЖИМ ---
+            // Все живые члены мафии должны сделать выбор, и все голоса должны строго совпасть
+            const allVoted = votes.length === aliveMafia.length && votes.every(v => v !== undefined && v !== null);
+            if (allVoted && isUnanimous) {
                 room.gameState.nightTarget = firstVote;
             } else {
                 room.gameState.nightTarget = null;
             }
-        },
-        winCondition: (room) => {
-            const aliveMafia = room.players.filter(p => p.isAlive !== false && (p.team === 'Мафия' || p.role === 'Мафия')).length;
-            const aliveManiac = room.players.filter(p => p.isAlive !== false && (p.team === 'Маньяк' || p.role === 'Маньяк')).length;
-            const alivePeaceful = room.players.filter(p => p.isAlive !== false && p.team !== 'Мафия' && p.role !== 'Мафия' && p.team !== 'Маньяк' && p.role !== 'Маньяк').length;
-            
-            // Если Маньяк еще жив — Мафия победить по перевесу сил не может, игра продолжается
-            if (aliveManiac > 0) return false;
-
-            return aliveMafia >= alivePeaceful && aliveMafia > 0;
         }
     },
+    winCondition: (room) => {
+        const aliveMafia = room.players.filter(p => p.isAlive !== false && (p.team === 'Мафия' || p.role === 'Мафия')).length;
+        const aliveManiac = room.players.filter(p => p.isAlive !== false && (p.team === 'Маньяк' || p.role === 'Маньяк')).length;
+        const alivePeaceful = room.players.filter(p => p.isAlive !== false && p.team !== 'Мафия' && p.role !== 'Мафия' && p.team !== 'Маньяк' && p.role !== 'Маньяк').length;
+        
+        if (aliveManiac > 0) return false;
+
+        return aliveMafia >= alivePeaceful && aliveMafia > 0;
+    }
+},
 
     MANIAC: {
         id: 'maniac',
@@ -195,7 +278,6 @@ const ROLES = {
 
 function executeRoleAction(roleName, room, speakerUsername, targetName) {
     const roleObject = Object.values(ROLES).find(r => r.name === roleName);
-    
     if (roleObject && typeof roleObject.performAction === 'function') {
         return roleObject.performAction(room, speakerUsername, targetName);
     }

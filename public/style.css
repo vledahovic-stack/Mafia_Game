@@ -1255,3 +1255,15 @@ ul.room-list-mock {
 * {
     touch-action: pan-x pan-y;
 }
+
+.role-card-item.don {
+    background: linear-gradient(135deg, #2a0845 0%, #6441a5 100%);
+    border: 2px solid #f1c40f;
+    box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+}
+
+.role-card-item.don .role-name {
+    color: #f1c40f;
+    text-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
+}
+
