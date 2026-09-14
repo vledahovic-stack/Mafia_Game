@@ -28,6 +28,39 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 app.use(express.json());
 
+app.post('/api/claim-welcome-chest', async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'Не передан ID пользователя' });
+    }
+
+    try {
+        db.get('SELECT welcome_chest_claimed FROM users WHERE id = ?', [userId], (err, row) => {
+            if (err || !row) {
+                return res.status(500).json({ error: 'Ошибка базы данных' });
+            }
+
+            if (row.welcome_chest_claimed === 1) {
+                return res.status(400).json({ error: 'Сундук новичка уже был получен' });
+            }
+
+            db.run(
+                'UPDATE users SET welcome_chest_claimed = 1, balance = balance + 500 WHERE id = ?',
+                [userId],
+                (updateErr) => {
+                    if (updateErr) {
+                        return res.status(500).json({ error: 'Не удалось выдать награду' });
+                    }
+                    res.json({ success: true, reward: { coins: 500 } });
+                }
+            );
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 const sessionMiddleware = session({
     secret: 'mafia-secret-key',
     resave: false,
@@ -111,7 +144,7 @@ app.post('/api/register', async (req, res) => {
         const defaultUsername = `Игрок_${customId}`;
 
         db.run(
-            'INSERT INTO users (id, email, username, password, free_nickname_changes) VALUES (?, ?, ?, ?, 1)',
+            'INSERT INTO users (id, email, username, password, free_nickname_changes, welcome_chest_claimed) VALUES (?, ?, ?, ?, 1, 0)',
             [customId, email.trim().toLowerCase(), defaultUsername, hashedPassword],
             function (err) {
                 if (err) {
@@ -151,7 +184,12 @@ app.post('/api/login', (req, res) => {
         req.session.userId = user.id;
         req.session.username = user.username;
 
-        res.json({ success: true, username: user.username, userId: user.id });
+        res.json({
+            success: true,
+            username: user.username,
+            userId: user.id,
+            welcome_chest_claimed: user.welcome_chest_claimed
+        });
     });
 });
 
@@ -270,7 +308,7 @@ app.get('/api/user/profile', (req, res) => {
     const userId = req.session.userId;
 
     db.get(
-        'SELECT id, email, username, COALESCE(balance, 0) AS balance, COALESCE(xp, 0) AS xp, COALESCE(free_nickname_changes, 1) AS free_nickname_changes FROM users WHERE id = ?', 
+        'SELECT id, email, username, COALESCE(balance, 0) AS balance, COALESCE(xp, 0) AS xp, COALESCE(free_nickname_changes, 1) AS free_nickname_changes, COALESCE(welcome_chest_claimed, 0) AS welcome_chest_claimed FROM users WHERE id = ?', 
         [userId], 
         (err, user) => {
             if (err || !user) {
@@ -286,12 +324,16 @@ app.get('/api/user/profile', (req, res) => {
                     });
                 }
 
-                const isAdmin = ADMIN_USERS.includes(String(user.id)) || ADMIN_USERS.includes(user.username);
+                db.get('SELECT COUNT(*) as count FROM pending_chests WHERE user_id = ? AND claimed = 0', [userId], (chestErr, chestRow) => {
+                    const pending_chests_count = chestRow ? chestRow.count : 0;
+                    const isAdmin = ADMIN_USERS.includes(String(user.id)) || ADMIN_USERS.includes(user.username);
 
-                res.json({
-                    ...user,
-                    isAdmin,
-                    inventory
+                    res.json({
+                        ...user,
+                        isAdmin,
+                        inventory,
+                        pending_chests_count
+                    });
                 });
             });
         }
@@ -885,6 +927,196 @@ io.on('connection', (socket) => {
                 }
             }
         }
+    });
+});
+
+let welcomeChestConfig = {
+    coins: 500,
+    items: {
+        role_card: 0,
+        bronze_chest: 0,
+        silver_chest: 0,
+        gold_chest: 0
+    }
+};
+
+app.get('/api/admin/welcome-chest', (req, res) => {
+    res.json(welcomeChestConfig);
+});
+
+app.post('/api/admin/welcome-chest', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
+
+    const { coins, items } = req.body;
+    welcomeChestConfig = { 
+        coins: Number(coins) || 0, 
+        items: items || {} 
+    };
+
+    res.json({ success: true, config: welcomeChestConfig });
+});
+
+app.post('/api/user/claim-welcome-chest', async (req, res) => {
+    try {
+        const userId = req.session?.userId || req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: 'Не авторизован' });
+        }
+
+        db.get('SELECT welcome_chest_claimed FROM users WHERE id = ?', [userId], async (err, user) => {
+            if (err || !user) {
+                return res.status(500).json({ error: 'Ошибка получения данных пользователя' });
+            }
+
+            if (user.welcome_chest_claimed) {
+                return res.status(400).json({ error: 'Сундук уже получен' });
+            }
+
+            const coinsToAdd = welcomeChestConfig.coins || 0;
+            if (coinsToAdd > 0) {
+                db.run('UPDATE users SET balance = balance + ? WHERE id = ?', [coinsToAdd, userId]);
+            }
+
+            const receivedItems = [];
+
+            if (welcomeChestConfig.items) {
+                for (const [itemId, qty] of Object.entries(welcomeChestConfig.items)) {
+                    if (qty > 0) {
+                        console.log(`DEBUG: Запись в inventory -> user_id: ${userId}, item_id: ${itemId}, qty: ${qty}`);
+                        
+                        db.run(`
+                            INSERT INTO inventory (user_id, item_id, quantity)
+                            VALUES (?, ?, ?)
+                            ON CONFLICT(user_id, item_id) 
+                            DO UPDATE SET quantity = quantity + EXCLUDED.quantity
+                        `, [userId, itemId, Number(qty)], function(err) {
+                            if (err) {
+                                console.error(`DEBUG ERROR для ${itemId}:`, err);
+                            } else {
+                                console.log(`DEBUG SUCCESS: Записано ${itemId}`);
+                            }
+                        });
+                        
+                        receivedItems.push({ itemId, qty: Number(qty) });
+                    }
+                }
+            }
+
+            db.run('UPDATE users SET welcome_chest_claimed = 1 WHERE id = ?', [userId], (updateErr) => {
+                if (updateErr) {
+                    console.error('Ошибка обновления статуса сундука:', updateErr);
+                    return res.status(500).json({ error: 'Ошибка сервера' });
+                }
+                res.json({ success: true, coins: coinsToAdd, items: receivedItems });
+            });
+        });
+    } catch (e) {
+        console.error('Ошибка выдачи наград:', e);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+app.post('/api/admin/send-custom-chest', async (req, res) => {
+    if (!req.session.username || !ADMIN_USERS.includes(req.session.username)) {
+        return res.status(403).json({ error: 'Доступ запрещён' });
+    }
+
+    const { userId, coins, items } = req.body;
+    const coinsVal = Number(coins) || 0;
+    const itemsJson = JSON.stringify(items || {});
+
+    const saveChestForUser = (targetId, callback) => {
+        db.run(
+            'INSERT INTO pending_chests (user_id, coins, items, claimed) VALUES (?, ?, ?, 0)',
+            [targetId, coinsVal, itemsJson],
+            (err) => {
+                if (err) console.error(`Ошибка сохранения сундука для пользователя ${targetId}:`, err);
+                if (callback) callback();
+            }
+        );
+    };
+
+    if (userId) {
+        db.get('SELECT id FROM users WHERE id = ?', [userId], (err, targetUser) => {
+            if (err || !targetUser) {
+                return res.status(404).json({ error: 'Пользователь с таким ID не найден' });
+            }
+
+            saveChestForUser(userId, () => {
+                res.json({ success: true, message: `Кастомный сундук успешно отправлен игроку с ID ${userId}` });
+            });
+        });
+    } else {
+        db.all('SELECT id FROM users', [], (err, users) => {
+            if (err || !users) {
+                return res.status(500).json({ error: 'Ошибка получения списка пользователей' });
+            }
+
+            let processed = 0;
+            if (users.length === 0) {
+                return res.json({ success: true, message: 'Рассылка завершена: нет пользователей' });
+            }
+
+            users.forEach(u => {
+                saveChestForUser(u.id, () => {
+                    processed++;
+                    if (processed === users.length) {
+                        res.json({ success: true, message: `Рассылка кастомного сундука успешно выполнена для ${users.length} пользователей!` });
+                    }
+                });
+            });
+        });
+    }
+});
+
+app.post('/api/user/claim-custom-chest', async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
+    const userId = req.session.userId;
+
+    db.get('SELECT * FROM pending_chests WHERE user_id = ? AND claimed = 0 ORDER BY id ASC LIMIT 1', [userId], (err, chest) => {
+        if (err || !chest) {
+            return res.status(404).json({ error: 'Нет доступных сундуков для получения' });
+        }
+
+        db.run('UPDATE pending_chests SET claimed = 1 WHERE id = ?', [chest.id], (err) => {
+            if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
+
+            const coinsToAdd = Number(chest.coins) || 0;
+            if (coinsToAdd > 0) {
+                db.run('UPDATE users SET balance = balance + ? WHERE id = ?', [coinsToAdd, userId]);
+            }
+
+            let parsedItems = {};
+            try {
+                parsedItems = JSON.parse(chest.items || '{}');
+                for (const [itemId, qty] of Object.entries(parsedItems)) {
+                    const quantity = Number(qty) || 0;
+                    if (quantity > 0) {
+                        db.run(`
+                            INSERT INTO inventory (user_id, item_id, quantity)
+                            VALUES (?, ?, ?)
+                            ON CONFLICT(user_id, item_id) 
+                            DO UPDATE SET quantity = quantity + EXCLUDED.quantity
+                        `, [userId, itemId, quantity]);
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка парсинга предметов сундука:', e);
+            }
+
+            res.json({ 
+                success: true, 
+                message: 'Сундук успешно получен!',
+                rewards: {
+                    coins: coinsToAdd,
+                    items: parsedItems
+                }
+            });
+        });
     });
 });
 

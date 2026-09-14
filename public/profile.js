@@ -106,10 +106,99 @@ async function loadProfile() {
             adminBtn.style.display = user.isAdmin ? 'block' : 'none';
         }
 
+        // Управление отображением блока кастомного сундука
+        const pendingSection = document.getElementById('pending-chest-section');
+        if (pendingSection) {
+            pendingSection.style.display = (user.pending_chests_count > 0) ? 'block' : 'none';
+        }
+
     } catch (err) {
         console.error('Ошибка загрузки профиля:', err);
         alert('Не удалось загрузить данные профиля');
     }
+}
+
+// Обработчик нажатия на кнопку получения кастомного сундука
+document.addEventListener('click', async (e) => {
+    if (e.target && e.target.id === 'btn-claim-pending-chest') {
+        try {
+            const response = await fetch('/api/user/claim-custom-chest', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                const pendingSection = document.getElementById('pending-chest-section');
+                if (pendingSection) pendingSection.style.display = 'none';
+
+                // Запускаем абсолютно идентичную анимацию открытия сундука
+                showCustomChestRewardAnimation(data.rewards);
+                loadProfile();
+            } else {
+                alert(data.error || 'Не удалось забрать сундук');
+            }
+        } catch (err) {
+            console.error('Ошибка запроса:', err);
+            alert('Ошибка связи с сервером');
+        }
+    }
+});
+
+function showCustomChestRewardAnimation(rewards) {
+    const modal = document.getElementById('chest-modal');
+    const selectView = document.getElementById('chest-select-view');
+    const resultView = document.getElementById('chest-result-view');
+    const title = document.getElementById('chest-result-title');
+    const list = document.getElementById('chest-rewards-list');
+    const closeBtn = document.getElementById('close-result-btn');
+    const chestImg = document.getElementById('chest-img');
+
+    if (!modal || !resultView) return;
+
+    if (selectView) selectView.style.display = 'none';
+    resultView.style.display = 'block';
+    modal.style.display = 'flex';
+
+    if (chestImg) {
+        chestImg.src = '/chest_closed.png';
+        chestImg.className = 'chest-image chest-animating';
+    }
+    
+    if (title) title.textContent = 'Открываем...';
+    if (list) list.innerHTML = '';
+    if (closeBtn) closeBtn.style.display = 'none';
+
+    setTimeout(() => {
+        if (chestImg) {
+            chestImg.src = '/chest_open.png';
+            chestImg.className = 'chest-image chest-opened';
+        }
+        if (title) title.textContent = '🎉 Вы получили сундук от администратора!';
+
+        let html = '';
+        if (rewards.coins > 0) {
+            html += `<div>💰 Монеты: <strong>+${rewards.coins}</strong></div>`;
+        }
+
+        const itemNames = {
+            'role_card': 'Карточки роли',
+            'chest_bronze': 'Бронзовый сундук',
+            'chest_silver': 'Серебряный сундук',
+            'chest_gold': 'Золотой сундук'
+        };
+
+        if (rewards.items) {
+            for (const [itemId, qty] of Object.entries(rewards.items)) {
+                if (qty > 0) {
+                    const name = itemNames[itemId] || itemId;
+                    html += `<div>🎁 ${name}: <strong>+${qty}</strong></div>`;
+                }
+            }
+        }
+
+        if (list) list.innerHTML = html || '<div>Пусто</div>';
+        if (closeBtn) closeBtn.style.display = 'inline-block';
+    }, 800);
 }
 
 // Открытие модального окна

@@ -1267,3 +1267,8 @@ ul.room-list-mock {
     text-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
 }
 
+.modal-desc {
+    margin-bottom: 15px;
+    color: #cbd5e0;
+}
+

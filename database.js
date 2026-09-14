@@ -54,7 +54,8 @@ async function initDb() {
                 login_streak INTEGER DEFAULT 0,
                 is_admin INTEGER DEFAULT 0,
                 xp INTEGER DEFAULT 0,
-                free_nickname_changes INTEGER DEFAULT 1
+                free_nickname_changes INTEGER DEFAULT 1,
+                welcome_chest_claimed INTEGER DEFAULT 0
             )
         `);
 
@@ -79,6 +80,18 @@ async function initDb() {
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
+		
+		await client.execute(`
+            CREATE TABLE IF NOT EXISTS pending_chests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                coins INTEGER DEFAULT 0,
+                items TEXT DEFAULT '{}',
+                claimed INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
 
         try {
             await client.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_item ON inventory(user_id, item_id)`);
@@ -94,7 +107,8 @@ async function initDb() {
             `ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`,
             `ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0`,
             `ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL`,
-            `ALTER TABLE users ADD COLUMN free_nickname_changes INTEGER DEFAULT 1`
+            `ALTER TABLE users ADD COLUMN free_nickname_changes INTEGER DEFAULT 1`,
+            `ALTER TABLE users ADD COLUMN welcome_chest_claimed INTEGER DEFAULT 0`
         ];
 
         for (const query of alterQueries) {
@@ -109,7 +123,6 @@ async function initDb() {
         console.error('Ошибка инициализации БД Turso:', err);
     }
 }
-
 initDb();
 
 const dbWrapper = {

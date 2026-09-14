@@ -74,6 +74,15 @@
             🎩 Панель владельца
         </button>
 
+        <!-- Блок ожидания кастомного сундука -->
+        <section id="pending-chest-section" style="margin-top: 15px; display: none;">
+            <div class="profile-card" style="text-align: center; border: 2px dashed #ffc107;">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: #ffc107;">📦 Вам доступен сундук от администратора!</p>
+                <p style="margin: 0 0 12px 0; font-size: 13px; color: #a0aec0;">Заберите его, чтобы получить награды на баланс и в инвентарь.</p>
+                <button id="btn-claim-pending-chest" style="padding: 8px 16px; background: #ffc107; color: #1a202c; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Забрать сундук</button>
+            </div>
+        </section>
+
         <!-- Блок инвентаря -->
         <section style="margin-top: 15px;">
             <div class="section-title">
@@ -139,6 +148,14 @@
             <div id="chest-rewards-list"></div>
             <button type="button" id="close-result-btn" onclick="closeChestModal()" style="display: none;">Забрать</button>
         </div>
+    </div>
+</div>
+
+<div id="admin-chest-modal" class="modal" style="display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000;">
+    <div class="modal-content" style="background: #1a202c; padding: 25px; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; color: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        <h3>📦 Сундук от администратора!</h3>
+        <p style="margin: 15px 0; color: #a0aec0;">Вам назначен специальный сундук с наградами.</p>
+        <button onclick="window.location.href='/profile.html'" style="background: #ffc107; color: #1a202c; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Перейти в профиль</button>
     </div>
 </div>
 
