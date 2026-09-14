@@ -2,6 +2,7 @@ const path = require('path');
 const { ROLES, executeRoleAction } = require('./rolesConfig');
 const {
     startGame,
+    startMafiaHuddle,
     setPhase,
     startIndividualSpeechPhase,
     finishSpeechEarly,

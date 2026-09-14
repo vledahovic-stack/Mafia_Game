@@ -22,9 +22,6 @@ function createAudioButton(player, socketId) {
     const isMe = (player.id === socketId);
     const btn = document.createElement('button');
     btn.className = 'card-audio-btn';
-    btn.style.margin = '5px';
-    btn.style.padding = '2px 6px';
-    btn.style.fontSize = '0.8rem';
 
     const updateBtnText = (muted) => {
         if (isMe) {
@@ -179,7 +176,6 @@ socket.on('updatePlayers', (players) => {
         players.forEach(player => {
             const item = document.createElement('div');
             item.className = 'lobby-player-card';
-            item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; marginBottom: 6px; padding: 8px; background: #282a45; border-radius: 6px; cursor: pointer; position: relative;';
             
             const nameSpan = document.createElement('span');
             nameSpan.textContent = player.username || player.name;
@@ -211,21 +207,17 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
 
     const menu = document.createElement('div');
     menu.id = 'player-context-menu';
-    menu.style.cssText = 'position: fixed; background: #1a1c29; border: 1px solid #434978; border-radius: 8px; padding: 8px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 6px; min-width: 200px;';
-    
-    menu.style.top = '50%';
-    menu.style.left = '50%';
-    menu.style.transform = 'translate(-50%, -50%)';
+    menu.className = 'ctx-menu';
 
     const title = document.createElement('div');
-    title.style.cssText = 'font-weight: bold; margin-bottom: 4px; padding: 4px; border-bottom: 1px solid #434978; color: #fff; text-align: center;';
+    title.className = 'ctx-menu-title';
     title.textContent = player.username || player.name;
     menu.appendChild(title);
 
     if (isHost) {
         const kickBtn = document.createElement('button');
+        kickBtn.className = 'ctx-menu-kick';
         kickBtn.textContent = '❌ Выгнать из комнаты';
-        kickBtn.style.cssText = 'width: 100%; padding: 8px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;';
         kickBtn.onclick = () => {
             socket.emit('kickPlayer', { roomId, targetId: player.id });
             menu.remove();
@@ -237,8 +229,9 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
     const isBlocked = myBlacklist.some(id => String(id) === String(targetUserId));
 
     const blacklistBtn = document.createElement('button');
+    blacklistBtn.className = 'ctx-menu-block';
+    blacklistBtn.style.background = isBlocked ? 'var(--clr-teal)' : '#e67e22';
     blacklistBtn.textContent = isBlocked ? '✅ Из чёрного списка' : '🚫 В чёрный список';
-    blacklistBtn.style.cssText = `width: 100%; padding: 8px 12px; background: ${isBlocked ? '#27ae60' : '#d35400'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;`;
 
     blacklistBtn.onclick = () => {
         if (isBlocked) {
@@ -253,8 +246,8 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
     menu.appendChild(blacklistBtn);
 
     const closeMenuBtn = document.createElement('button');
+    closeMenuBtn.className = 'ctx-menu-close';
     closeMenuBtn.textContent = 'Закрыть';
-    closeMenuBtn.style.cssText = 'width: 100%; padding: 6px; background: #434978; color: white; border: none; border-radius: 4px; cursor: pointer;';
     closeMenuBtn.onclick = () => menu.remove();
     menu.appendChild(closeMenuBtn);
 
@@ -317,6 +310,11 @@ function updateMicrophoneState(gameState, myPlayer) {
     let canSpeak = false;
 
     switch (gameState.phase) {
+        case 0.5:
+            // Договорка: говорят только члены чёрной команды
+            canSpeak = isMafia;
+            break;
+
         case 1:
             canSpeak = true;
             break;
@@ -344,7 +342,7 @@ socket.on('gameStateUpdate', (state) => {
         currentSettings = state.settings;
     }
 
-    const isGameActive = state.phase && state.phase >= 1 && state.phase <= 5;
+    const isGameActive = state.phase && (state.phase === 0.5 || (state.phase >= 1 && state.phase <= 5));
 
     if (state.phase === 6) {
         if (sessionStorage.getItem('game_closed_' + roomId) === 'true') {
@@ -488,19 +486,7 @@ function renderGridContent(state) {
 
                 if (currentNomination) {
                     const nominationBadge = document.createElement('div');
-                    nominationBadge.className = 'current-nomination-badge';
-                    nominationBadge.style.cssText = `
-                        margin-top: 10px;
-                        padding: 6px 12px;
-                        background: rgba(231, 76, 60, 0.9);
-                        border-radius: 6px;
-                        color: white;
-                        font-weight: bold;
-                        font-size: 0.95rem;
-                        border: 1px solid #c0392b;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                        text-align: center;
-                    `;
+                    nominationBadge.className = 'nomination-badge';
                     nominationBadge.textContent = `Выставляет: ${currentNomination}`;
                     playersGrid.appendChild(nominationBadge);
                 }
@@ -555,8 +541,7 @@ function renderGridContent(state) {
             const totalVoters = state.players.filter(p => p.isAlive !== false).length;
 
             const votesCounterBox = document.createElement('div');
-            votesCounterBox.className = 'total-votes-box';
-            votesCounterBox.style.cssText = 'width: 100%; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 1.1rem; color: #fff;';
+            votesCounterBox.className = 'votes-counter';
             votesCounterBox.textContent = `Проголосовало: ${totalVoted} из ${totalVoters}`;
             playersGrid.appendChild(votesCounterBox);
 
@@ -635,7 +620,7 @@ function renderGridContent(state) {
 
                 if (hintText) {
                     const hintBox = document.createElement('div');
-                    hintBox.style.cssText = 'width: 100%; text-align: center; margin-bottom: 12px; font-weight: bold; color: #f1c40f; font-size: 1.05rem;';
+                    hintBox.className = 'night-hint';
                     hintBox.textContent = hintText;
                     playersGrid.appendChild(hintBox);
                 }
@@ -737,6 +722,46 @@ function renderGridContent(state) {
                 });
             }
         }
+        else if (state.phase === 0.5) {
+            // --- Фаза 0.5: Стартовая договорка чёрной команды ---
+            if (finishSpeechBtn) finishSpeechBtn.style.display = 'none';
+            if (skipNightBtn)    skipNightBtn.style.display    = 'none';
+
+            const isMafiaPlayer = me && me.isAlive !== false &&
+                (myRole.includes('Мафия') || myRole.includes('Дон') ||
+                 (me.team && me.team === 'Мафия'));
+
+            if (isMafiaPlayer) {
+                // Чёрные: переговорный экран
+                playersGrid.className = 'night-mode-civilian';
+                playersGrid.innerHTML = `
+                    <div class="night-banner huddle-banner--mafia">
+                        <div class="moon-icon">🎭</div>
+                        <h3>Договорка</h3>
+                        <p>
+                            У вас <strong>60 секунд</strong> на выработку совместной стратегии.<br>
+                            Город спит. Говорите свободно.
+                        </p>
+                        <div class="huddle-team-list">
+                            Члены команды:
+                            ${(state.players || []).filter(p => p.isAlive !== false && (p.team === 'Мафия'))
+                                .map(p => `<span class="huddle-team-tag">${p.username || p.name}</span>`)
+                                .join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Мирные: экран ожидания
+                playersGrid.className = 'night-mode-civilian';
+                playersGrid.innerHTML = `
+                    <div class="night-banner">
+                        <div class="moon-icon">🌙</div>
+                        <h3>Город спит...</h3>
+                        <p>Чёрная команда проводит закрытое совещание.<br>Ожидайте завершения договорки.</p>
+                    </div>
+                `;
+            }
+        }
         else {
             playersGrid.className = 'grid-mode';
             if (finishSpeechBtn) finishSpeechBtn.style.display = 'none';
@@ -795,14 +820,14 @@ function showGameOverModal(winner, players) {
         gameOverModal.style.zIndex = '9999';
         
         gameOverModal.innerHTML = `
-            <div class="modal-content" style="max-width: 450px; padding: 20px; text-align: center;">
-                <h2 id="game-over-title" style="margin-bottom: 10px; font-size: 1.6rem; color: #f1c40f;">🏆 Игра окончена!</h2>
-                <div id="game-over-winner" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #fff;"></div>
-                <div style="text-align: left; background: #282a45; padding: 12px; border-radius: 10px; border: 1px solid #434978; margin-bottom: 15px; max-height: 250px; overflow-y: auto;">
-                    <h4 style="margin-top: 0; margin-bottom: 10px; color: #cbd5e0; border-bottom: 1px solid #434978; padding-bottom: 5px;">Раскрытие ролей:</h4>
+            <div class="modal-content game-over-modal-content">
+                <h2 id="game-over-title" class="game-over-title">🏆 Игра окончена!</h2>
+                <div id="game-over-winner" class="game-over-winner"></div>
+                <div class="game-over-roles-wrap">
+                    <h4>Раскрытие ролей:</h4>
                     <div id="game-over-roles-list"></div>
                 </div>
-                <button id="game-over-confirm-btn" style="width: 100%; padding: 10px; font-size: 1rem; font-weight: bold; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;">Вернуться в лобби</button>
+                <button id="game-over-confirm-btn" class="game-over-confirm-btn">Вернуться в лобби</button>
             </div>
         `;
         document.body.appendChild(gameOverModal);
@@ -816,8 +841,8 @@ function showGameOverModal(winner, players) {
 
     const winnerTextElem = document.getElementById('game-over-winner');
     const isMafiaWin = winner === 'Мафия';
-    const winnerColor = isMafiaWin ? '#e74c3c' : '#2ecc71';
-    winnerTextElem.innerHTML = `Победила команда: <span style="color: ${winnerColor}">${winner || 'Завершено'}</span> 🎉`;
+    const winnerClass = isMafiaWin ? 'u-color-red' : 'u-color-teal';
+    winnerTextElem.innerHTML = `Победила команда: <span class="${winnerClass}">${winner || 'Завершено'}</span> 🎉`;
 
     const rolesListElem = document.getElementById('game-over-roles-list');
     rolesListElem.innerHTML = '';
@@ -836,10 +861,10 @@ function showGameOverModal(winner, players) {
             else if (pRole.includes('Маньяк') || pRole.includes('maniac')) roleIcon = '🔪';
 
             const item = document.createElement('div');
-            item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #32375a; font-size: 0.95rem;';
+            item.className = 'game-over-role-item';
             item.innerHTML = `
                 <span><b>${pName}</b></span>
-                <span>${roleIcon} ${pRole} <small style="opacity: 0.7; margin-left: 5px;">(${isAliveText})</small></span>
+                <span>${roleIcon} ${pRole} <small class="game-over-role-status">(${isAliveText})</small></span>
             `;
             rolesListElem.appendChild(item);
         });
@@ -855,10 +880,10 @@ function showActionResultModal(target, result) {
         actionModal.id = 'action-result-modal';
         actionModal.className = 'modal';
         actionModal.innerHTML = `
-            <div class="modal-content">
+            <div class="modal-content action-result-modal-content">
                 <h3>🔍 Досье проверки</h3>
-                <div id="action-result-text" style="margin: 15px 0;"></div>
-                <button id="action-result-confirm-btn" style="width: 100%;">Принято</button>
+                <div id="action-result-text"></div>
+                <button id="action-result-confirm-btn" class="action-result-confirm-btn">Принято</button>
             </div>
         `;
         document.body.appendChild(actionModal);
@@ -874,13 +899,13 @@ function showActionResultModal(target, result) {
 
     const resultLower = (result || '').toLowerCase();
     const isPositiveFind = resultLower.includes('шериф') || resultLower.includes('пончиков');
-    const resultColor = isPositiveFind ? '#1dd1a1' : '#ff6b6b';
+    const resultVerdictClass = isPositiveFind ? 'action-result--found' : 'action-result--not-found';
     
     const resultTextElem = document.getElementById('action-result-text');
     resultTextElem.innerHTML = `
-        <div style="background: #282a45; padding: 12px; border-radius: 10px; border: 1px solid #434978;">
-            <p style="color: #cbd5e0; font-size: 0.85rem; margin-bottom: 6px;">Объект проверки: <b>${target}</b></p>
-            <p style="color: ${resultColor}; font-size: 1rem; font-weight: 600; line-height: 1.4;">${result}</p>
+        <div class="action-result-dossier">
+            <p class="action-result-target">Объект проверки: <b>${target}</b></p>
+            <p class="action-result-verdict ${resultVerdictClass}">${result}</p>
         </div>
     `;
     actionModal.style.display = 'flex';
@@ -896,7 +921,7 @@ function showNightNewsModal(messageText) {
             <div class="modal-content">
                 <h3>Итоги ночи 😴</h3>
                 <div id="night-news-text"></div>
-                <button id="night-news-confirm-btn" style="width: 100%; margin-top: 15px;">Понятно</button>
+                <button id="night-news-confirm-btn" class="night-news-confirm-btn">Понятно</button>
             </div>
         `;
         document.body.appendChild(newsModal);
@@ -943,7 +968,7 @@ function showRoleModal(role) {
         }
 
         modalPlayerRole.innerHTML = `
-            <div class="role-card-item ${roleClass}" style="margin: 15px auto; max-width: 240px;">
+            <div class="role-card-item ${roleClass} role-modal-card">
                 <div class="role-icon">${roleIcon}</div>
                 <div class="role-name">${role}</div>
                 <div class="role-desc">${roleDesc}</div>

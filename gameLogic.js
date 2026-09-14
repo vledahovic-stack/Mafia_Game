@@ -789,11 +789,71 @@ function startGame(room, io) {
     });
 
     io.to(room.id).emit('updatePlayers', room.players);
-    setPhase(room, 0, io);
+
+    // Проверяем условия запуска стартовой договорки:
+    // 1) Режим «Спортивная мафия»
+    // 2) В роздаче есть Дон
+    const gameMode = room.settings?.rules?.gameMode || room.settings?.gameMode || 'city';
+    const donRoleName = ROLES.DON ? ROLES.DON.name : 'Дон мафии';
+    const hasDon = room.players.some(p => p.role === donRoleName);
+
+    if (gameMode === 'sport' && hasDon) {
+        startMafiaHuddle(room, io);
+    } else {
+        setPhase(room, 0, io);
+    }
+}
+
+/**
+ * Стартовая договорка чёрной команды (phase = 0.5).
+ * Запускается ОДИН РАЗ за партию — до первых суток.
+ * Активна только при: Спортивная мафия + роль Дона в составе.
+ * Чёрные игроки (Мафия / Дон) получают 60 секунд на закрытое общение.
+ * Остальные «спят» — их UI показывает экран ожидания, микрофоны заглушены.
+ * По истечении таймера автоматически переход к фазе 0 (знакомство с ролью).
+ */
+function startMafiaHuddle(room, io) {
+    const HUDDLE_DURATION = 60;
+
+    room.gameState = {
+        phase: 0.5,
+        phaseText: 'Договорка: Мафия совещается',
+        day: 1,
+        timeLeft: HUDDLE_DURATION,
+        huddleDone: true,      // Флаг однократности — больше фаза не повторяется
+        players: room.players,
+        gameLog: room.gameLog || []
+    };
+
+    if (room.timer) {
+        clearInterval(room.timer);
+        room.timer = null;
+    }
+
+    io.to(room.id).emit('gameStateUpdate', room.gameState);
+
+    room.timer = setInterval(() => {
+        if (!room.gameState) {
+            clearInterval(room.timer);
+            return;
+        }
+
+        room.gameState.timeLeft--;
+
+        if (room.gameState.timeLeft <= 0) {
+            clearInterval(room.timer);
+            room.timer = null;
+            // Договорка завершена — переходим к стандартному знакомству с ролью
+            setPhase(room, 0, io);
+        } else {
+            io.to(room.id).emit('gameStateUpdate', room.gameState);
+        }
+    }, 1000);
 }
 
 module.exports = {
     startGame,
+    startMafiaHuddle,
     setPhase,
     startIndividualSpeechPhase,
     finishSpeechEarly,

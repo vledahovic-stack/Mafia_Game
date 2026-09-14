@@ -23,17 +23,17 @@
             <span class="char c-3 has-tie">Ф</span>
             <span class="char c-4 has-glasses">И</span>
             <span class="char c-5">Я</span>
-            <span style="width: 5px;"></span>
+            <span class="title-spacer"></span>
             <span class="char c-6 has-cigar">К</span>
             <span class="char c-7">Л</span>
             <span class="char c-8">У</span>
             <span class="char c-9 has-rose">Б</span>
         </h1>
         <div id="user-block">
-            <span id="user-balance" style="display: none;">💰 <span id="balance-value">0</span></span>
-            <button id="btn-daily-bonus" style="display: none;" onclick="claimDailyBonus()">🎁 Бонус</button>
+            <span id="user-balance">💰 <span id="balance-value">0</span></span>
+            <button id="btn-daily-bonus" onclick="claimDailyBonus()">🎁 Бонус</button>
             <button id="btn-auth" onclick="openModal('modal-auth')">Авторизация</button>
-            <button id="btn-logout" style="display: none;">Выйти</button>
+            <button id="btn-logout">Выйти</button>
         </div>
     </header>
 
@@ -59,7 +59,7 @@
         <section>
             <div class="section-title">
                 <span>Доступные комнаты</span>
-                <span style="font-size: 11px; color: #1dd1a1;"><span class="pulse-dot">●</span> <span id="online-counter">В онлайне: 0</span></span>
+                <span class="online-counter-label"><span class="pulse-dot">●</span> <span id="online-counter">В онлайне: 0</span></span>
             </div>
             <ul id="rooms-list" class="room-list-mock">
                 <li class="room-card waiting">
@@ -120,7 +120,7 @@
         </div>
 
         <!-- Контент регистрации -->
-        <div id="auth-register-content" class="auth-tab-content" style="display: none;">
+        <div id="auth-register-content" class="auth-tab-content">
             <h3>🤝 Вступить в сообщество</h3>
             <form id="form-register">
                 <input type="email" placeholder="Введите e-mail" required>

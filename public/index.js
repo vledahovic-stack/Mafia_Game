@@ -120,7 +120,7 @@ async function loadRooms() {
 
         if (!rooms || rooms.length === 0) {
             roomsList.innerHTML = `
-                <li class="room-card waiting" style="justify-content: center; padding: 15px; color: #a0aec0;">
+                <li class="room-card room-card--empty">
                     <span>Нет активных комнат. Будьте первым, кто создаст!</span>
                 </li>
             `;
@@ -217,27 +217,27 @@ function showHomeAdminChestModal(pendingCount) {
         modal = document.createElement('div');
         modal.id = 'home-admin-chest-modal';
         modal.className = 'modal';
-        modal.style.cssText = 'display: flex; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000;';
+        modal.style.display = 'flex';
         modal.innerHTML = `
-            <div class="modal-content" style="background: #1a202c; padding: 25px; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; color: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.5); position: relative;">
-                <button onclick="closeHomeAdminChestModal(${pendingCount})" style="position: absolute; top: 10px; right: 15px; background: none; border: none; color: #a0aec0; font-size: 20px; cursor: pointer;">&times;</button>
+            <div class="modal-content admin-chest-modal-content">
+                <button class="close-btn" onclick="closeHomeAdminChestModal(${pendingCount})">&times;</button>
                 
                 <div id="home-chest-select-view">
                     <h3>📦 Сундук от администратора!</h3>
-                    <p style="margin: 15px 0; color: #a0aec0;">Вам назначен специальный сундук с наградами.</p>
-                    <div style="margin: 20px 0;">
-                        <img id="home-chest-img" src="/chest_closed.png" class="chest-image" style="width: 100px; height: 100px; object-fit: contain;">
+                    <p class="pending-chest-desc">Вам назначен специальный сундук с наградами.</p>
+                    <div class="admin-chest-img-wrap">
+                        <img id="home-chest-img" src="/chest_closed.png" class="chest-image admin-chest-img" alt="Сундук">
                     </div>
-                    <button onclick="claimHomeAdminChest(${pendingCount})" style="background: #ffc107; color: #1a202c; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%;">Открыть сундук</button>
+                    <button class="admin-chest-claim-btn" onclick="claimHomeAdminChest(${pendingCount})">Открыть сундук</button>
                 </div>
 
-                <div id="home-chest-result-view" style="display: none;">
+                <div id="home-chest-result-view">
                     <h3 id="home-chest-result-title">Открываем...</h3>
-                    <div style="margin: 20px 0;">
-                        <img id="home-chest-result-img" src="/chest_closed.png" class="chest-image" style="width: 100px; height: 100px; object-fit: contain;">
+                    <div class="admin-chest-img-wrap">
+                        <img id="home-chest-result-img" src="/chest_closed.png" class="chest-image admin-chest-img" alt="Сундук">
                     </div>
-                    <div id="home-chest-rewards-list" style="margin: 15px 0; font-size: 16px; color: #e2e8f0;"></div>
-                    <button onclick="document.getElementById('home-admin-chest-modal').style.display='none'; location.reload();" style="background: #ffc107; color: #1a202c; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; width: 100%;" id="home-close-result-btn">Отлично</button>
+                    <div id="home-chest-rewards-list" class="admin-chest-rewards-list"></div>
+                    <button id="home-close-result-btn" class="admin-chest-claim-btn" onclick="document.getElementById('home-admin-chest-modal').style.display='none'; location.reload();">Отлично</button>
                 </div>
             </div>
         `;
@@ -249,7 +249,7 @@ function showHomeAdminChestModal(pendingCount) {
         const img = document.getElementById('home-chest-img');
         if (img) {
             img.src = '/chest_closed.png';
-            img.className = 'chest-image';
+            img.className = 'chest-image admin-chest-img';
         }
     }
 }

@@ -17,7 +17,7 @@
             <span class="char c-3 has-tie">Ф</span>
             <span class="char c-4 has-glasses">И</span>
             <span class="char c-5">Я</span>
-            <span style="width: 5px;"></span>
+            <span class="title-spacer"></span>
             <span class="char c-6 has-cigar">К</span>
             <span class="char c-7">Л</span>
             <span class="char c-8">У</span>
@@ -45,16 +45,16 @@
                 <p class="profile-field"><strong>Общак (Баланс):</strong> <span id="profile-balance">0</span> 💰</p>
 
                 <!-- Блок смены никнейма -->
-                <div class="nickname-change-section" style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 12px;">
-                    <p style="margin-bottom: 8px; font-size: 14px;"><strong>Сменить никнейм:</strong> <span style="font-size: 12px; color: #a0aec0;">(1-я бесплатно, далее — 100 💰)</span></p>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="new-username-input" placeholder="Новый никнейм" maxlength="20" style="flex: 1; padding: 6px 10px; border-radius: 4px; border: 1px solid #4a5568; background: #1a202c; color: #fff;">
-                        <button id="btn-change-nickname" onclick="changeNickname()" style="padding: 6px 12px; cursor: pointer;">Сохранить</button>
+                <div class="nickname-section">
+                    <p><strong>Сменить никнейм:</strong> <span class="nickname-hint">(1-я бесплатно, далее — 100 💰)</span></p>
+                    <div class="nickname-row">
+                        <input type="text" id="new-username-input" class="nickname-input" placeholder="Новый никнейм" maxlength="20">
+                        <button id="btn-change-nickname" onclick="changeNickname()">Сохранить</button>
                     </div>
                 </div>
 
                 <!-- Блок авторитета (Уровень и XP) -->
-                <div class="profile-xp-section" style="margin-top: 15px;">
+                <div class="profile-xp-section">
                     <div class="profile-xp-header">
                         <strong>⭐ Авторитет (Уровень): <span id="profile-level" class="profile-level-val">1</span></strong>
                         <span id="profile-xp-text" class="profile-xp-text">0 / 10 XP</span>
@@ -69,22 +69,21 @@
         <!-- Кнопка администратора (скрыта по умолчанию) -->
         <button id="admin-panel-btn" 
                 class="btn-admin-panel" 
-                onclick="window.location.href='/admin.html'" 
-                style="display: none;">
+                onclick="window.location.href='/admin.html'">
             🎩 Панель владельца
         </button>
 
         <!-- Блок ожидания кастомного сундука -->
-        <section id="pending-chest-section" style="margin-top: 15px; display: none;">
-            <div class="profile-card" style="text-align: center; border: 2px dashed #ffc107;">
-                <p style="margin: 0 0 10px 0; font-weight: bold; color: #ffc107;">📦 Вам доступен сундук от администратора!</p>
-                <p style="margin: 0 0 12px 0; font-size: 13px; color: #a0aec0;">Заберите его, чтобы получить награды на баланс и в инвентарь.</p>
-                <button id="btn-claim-pending-chest" style="padding: 8px 16px; background: #ffc107; color: #1a202c; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Забрать сундук</button>
+        <section id="pending-chest-section" class="profile-section">
+            <div class="profile-card pending-chest-card">
+                <p class="pending-chest-title">📦 Вам доступен сундук от администратора!</p>
+                <p class="pending-chest-desc">Заберите его, чтобы получить награды на баланс и в инвентарь.</p>
+                <button id="btn-claim-pending-chest" class="admin-chest-claim-btn">Забрать сундук</button>
             </div>
         </section>
 
         <!-- Блок инвентаря -->
-        <section style="margin-top: 15px;">
+        <section class="profile-section">
             <div class="section-title">
                 <span>🎒 Инвентарь</span>
             </div>
@@ -111,7 +110,7 @@
         </section>
 
         <!-- Блок под будущие достижения -->
-        <section style="margin-top: 15px;">
+        <section class="profile-section">
             <div class="section-title">
                 <span>🏆 Награды и медали</span>
             </div>
@@ -122,7 +121,7 @@
     </main>
 </div>
 
-<div id="chest-modal" class="modal" style="display: none;">
+<div id="chest-modal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="closeChestModal()">&times;</span>
 
@@ -142,20 +141,20 @@
         </div>
 
         <!-- Экран анимации и результата -->
-        <div id="chest-result-view" style="display: none;">
+        <div id="chest-result-view">
             <img id="chest-img" src="/chest_closed.png" alt="Сундук" class="chest-image">
             <h3 id="chest-result-title">Открываем...</h3>
             <div id="chest-rewards-list"></div>
-            <button type="button" id="close-result-btn" onclick="closeChestModal()" style="display: none;">Забрать</button>
+            <button type="button" id="close-result-btn" onclick="closeChestModal()">Забрать</button>
         </div>
     </div>
 </div>
 
-<div id="admin-chest-modal" class="modal" style="display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000;">
-    <div class="modal-content" style="background: #1a202c; padding: 25px; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; color: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+<div id="admin-chest-modal" class="modal">
+    <div class="modal-content admin-chest-modal-content">
         <h3>📦 Сундук от администратора!</h3>
-        <p style="margin: 15px 0; color: #a0aec0;">Вам назначен специальный сундук с наградами.</p>
-        <button onclick="window.location.href='/profile.html'" style="background: #ffc107; color: #1a202c; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Перейти в профиль</button>
+        <p class="pending-chest-desc">Вам назначен специальный сундук с наградами.</p>
+        <button onclick="window.location.href='/profile.html'" class="admin-chest-claim-btn">Перейти в профиль</button>
     </div>
 </div>
 

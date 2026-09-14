@@ -15,17 +15,17 @@
             <h2>Комната ожидания</h2>
             
             <!-- Блок карточки выбора роли -->
-            <div id="role-card-block" style="margin: 10px 0;">
+            <div id="role-card-block">
                 <button id="use-card-btn" onclick="openRoleMenu()">Использовать карточку роли (<span id="card-count">0</span>)</button>
             </div>
 
             <div id="lobby-players-list"></div>
-            <button id="open-settings-btn" style="display: none; margin-bottom: 10px;">Настройки комнаты</button>
-            <button id="start-game-btn" style="display: none;">Начать игру</button>
+            <button id="open-settings-btn">Настройки комнаты</button>
+            <button id="start-game-btn">Начать игру</button>
         </div>
 
         <!-- ЭКРАН 2: ИГРОВОЙ СТОЛ -->
-        <div id="game-screen" style="display: none;">
+        <div id="game-screen">
             <div id="game-header">
                 <span id="day-counter">День 1</span>
                 <span id="game-phase">Ожидание...</span>
@@ -35,14 +35,14 @@
             <div id="players-grid"></div>
 
             <div id="game-controls">
-                <button id="end-game-btn" style="display: none;">Завершить игру</button>
-                <button id="skip-phase-btn" style="display: none;">Пропустить фазу <span id="skip-count"></span></button>
+                <button id="end-game-btn">Завершить игру</button>
+                <button id="skip-phase-btn">Пропустить фазу <span id="skip-count"></span></button>
             </div>
         </div>
     </div>
 
     <!-- Модальное окно роли -->
-    <div id="role-modal" class="modal" style="display: none;">
+    <div id="role-modal" class="modal">
         <div class="modal-content">
             <h3>Ваша роль: <span id="modal-player-role"></span></h3>
             <button id="modal-confirm-btn">Понятно</button>
@@ -50,23 +50,23 @@
     </div>
 
     <!-- Модальное окно выбора желаемой роли перед игрой -->
-    <div id="role-select-modal" class="modal" style="display: none;">
+    <div id="role-select-modal" class="modal">
         <div class="modal-content">
             <h3>Выберите желаемую роль</h3>
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px;">
+            <div class="role-select-actions">
                 <button onclick="selectDesiredRole('mafia')">Мафия</button>
-                <button onclick="selectDesiredRole('don')">Дон мафии</button> <!-- ← ДОБАВЛЕНО -->
+                <button onclick="selectDesiredRole('don')">Дон мафии</button>
                 <button onclick="selectDesiredRole('doctor')">Доктор</button>
                 <button onclick="selectDesiredRole('sheriff')">Шериф</button>
                 <button onclick="selectDesiredRole('zhivchik')">Живчик</button>
                 <button onclick="selectDesiredRole('maniac')">Маньяк</button>
-                <button onclick="closeRoleMenu()" style="background: #555; margin-top: 5px;">Отмена</button>
+                <button onclick="closeRoleMenu()" class="btn-cancel">Отмена</button>
             </div>
         </div>
     </div>
 
     <!-- Модальное окно настроек комнаты -->
-    <div id="settings-modal" class="modal" style="display: none;">
+    <div id="settings-modal" class="modal">
         <div class="modal-content settings-modal-content">
             <span class="close" id="close-settings-btn">&times;</span>
             <h3>Настройки комнаты</h3>
@@ -151,13 +151,13 @@
                     <!-- ================================================== -->
                 </div>
 
-                <button type="submit" style="margin-top: 15px;">Сохранить</button>
+                <button type="submit" class="btn-settings-save">Сохранить</button>
             </form>
         </div>
     </div>
 
     <!-- Контейнер для аудиопотоков WebRTC -->
-    <div id="audio-container" style="display: none;"></div>
+    <div id="audio-container"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"></script>
