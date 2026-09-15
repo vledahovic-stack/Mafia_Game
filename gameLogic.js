@@ -242,20 +242,63 @@ function startVotingPhase(room, io, isTieBreaker = false) {
 }
 
 function castVote(room, io, voterUsername, candidateName) {
-    if (room.gameState && room.gameState.phase === 3) {
-        if (room.gameState.votingCandidates.includes(candidateName)) {
-            room.gameState.votes[voterUsername] = candidateName;
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+    if (!room.gameState || room.gameState.phase !== 3) return;
+
+    const voter = room.players.find(p => (p.username === voterUsername || p.name === voterUsername) && p.isAlive !== false);
+    if (!voter) return;
+
+    if (!room.gameState.votingCandidates || !room.gameState.votingCandidates.includes(candidateName)) {
+        return;
+    }
+
+    // При дуэли (переголосование между 2 игроками) кандидаты лишаются права голоса
+    const isTieBreakerDuel = room.gameState.isTieBreaker && room.gameState.votingCandidates.length === 2;
+    if (isTieBreakerDuel) {
+        const voterDisplayName = voter.username || voter.name || voterUsername;
+        if (
+            room.gameState.votingCandidates.includes(voterUsername) ||
+            room.gameState.votingCandidates.includes(voterDisplayName) ||
+            (voter.username && room.gameState.votingCandidates.includes(voter.username)) ||
+            (voter.name && room.gameState.votingCandidates.includes(voter.name))
+        ) {
+            return;
         }
     }
+
+    if (!room.gameState.votes) {
+        room.gameState.votes = {};
+    }
+
+    room.gameState.votes[voterUsername] = candidateName;
+    io.to(room.id).emit('gameStateUpdate', room.gameState);
 }
 
 function tallyVotes(room, io) {
     const voteCounts = {};
     room.gameState.votingCandidates.forEach(c => voteCounts[c] = 0);
 
+    const isTieBreakerDuel = room.gameState.isTieBreaker && room.gameState.votingCandidates.length === 2;
+
     const votesByCandidate = {};
     Object.entries(room.gameState.votes || {}).forEach(([voter, candidate]) => {
+        const voterPlayer = room.players.find(p => (p.username === voter || p.name === voter) && p.isAlive !== false);
+        if (!voterPlayer) return;
+
+        // Если это дуэль на переголосовании, исключаем голоса самих кандидатов дуэли
+        if (isTieBreakerDuel) {
+            const voterDisplayName = voterPlayer.username || voterPlayer.name || voter;
+            if (
+                room.gameState.votingCandidates.includes(voter) ||
+                room.gameState.votingCandidates.includes(voterDisplayName) ||
+                (voterPlayer.username && room.gameState.votingCandidates.includes(voterPlayer.username)) ||
+                (voterPlayer.name && room.gameState.votingCandidates.includes(voterPlayer.name))
+            ) {
+                return;
+            }
+        }
+
+        if (!room.gameState.votingCandidates.includes(candidate)) return;
+
         if (!votesByCandidate[candidate]) votesByCandidate[candidate] = [];
         votesByCandidate[candidate].push(voter);
         if (voteCounts[candidate] !== undefined) {
@@ -263,7 +306,6 @@ function tallyVotes(room, io) {
         }
 
         // Начисление опыта за точный дневной голос
-        const voterPlayer = room.players.find(p => (p.username === voter || p.name === voter) && p.isAlive !== false);
         const candidatePlayer = room.players.find(p => (p.username === candidate || p.name === candidate));
 
         if (voterPlayer && candidatePlayer) {

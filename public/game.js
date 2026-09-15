@@ -270,6 +270,7 @@ socket.on('yourRole', (data) => {
     if (data && data.role) {
         myRole = data.role;
         showRoleModal(data.role);
+        updateSidebarRoleInfo(data.role);
     }
 });
 
@@ -429,6 +430,15 @@ socket.on('gameStateUpdate', (state) => {
         renderGameLog(state.gameLog);
     }
 
+    if (state.players) {
+        updateSidebarPlayers(state.players, state);
+        if (me && me.role) {
+            updateSidebarRoleInfo(me.role);
+        } else if (myRole) {
+            updateSidebarRoleInfo(myRole);
+        }
+    }
+
     updateMicrophoneState(state, me);
 });
 
@@ -537,22 +547,56 @@ function renderGridContent(state) {
 
             const myVote = state.votes ? (state.votes[myName] || state.votes[username]) : null;
 
-            const totalVoted = Object.keys(state.votes || {}).length;
-            const totalVoters = state.players.filter(p => p.isAlive !== false).length;
+            const alivePlayers = state.players.filter(p => p.isAlive !== false);
+            const isTieBreaker = Boolean(state.isTieBreaker);
+            const candidates = state.votingCandidates || [];
+            const isDuelRevote = isTieBreaker && candidates.length === 2;
+
+            // Проверяем, является ли текущий игрок кандидатом дуэли на переголосовании
+            const isCandidateInDuel = isDuelRevote && (
+                candidates.includes(myName) ||
+                candidates.includes(username) ||
+                (me && (candidates.includes(me.username) || candidates.includes(me.name)))
+            );
+
+            const isAlive = me && me.isAlive !== false;
+            const canVote = isAlive && !isCandidateInDuel;
+
+            // При дуэли переголосования кандидаты не входят в число голосующих
+            const eligibleVoters = isDuelRevote
+                ? alivePlayers.filter(p => {
+                    const pName = p.username || p.name;
+                    return !candidates.includes(pName) && !candidates.includes(p.username) && !candidates.includes(p.name);
+                })
+                : alivePlayers;
+
+            const totalVoters = eligibleVoters.length;
+
+            const votedCount = Object.keys(state.votes || {}).filter(voterKey => {
+                if (isDuelRevote && candidates.includes(voterKey)) return false;
+                return true;
+            }).length;
 
             const votesCounterBox = document.createElement('div');
             votesCounterBox.className = 'votes-counter';
-            votesCounterBox.textContent = `Проголосовало: ${totalVoted} из ${totalVoters}`;
+            votesCounterBox.textContent = `Проголосовало: ${votedCount} из ${totalVoters}`;
             playersGrid.appendChild(votesCounterBox);
 
-            (state.votingCandidates || []).forEach(candName => {
+            if (isCandidateInDuel) {
+                const duelNotice = document.createElement('div');
+                duelNotice.className = 'voting-warning-banner';
+                duelNotice.innerHTML = '⚖️ <strong>Дуэль на переголосовании:</strong> Вы находитесь на голосовании и лишены права голоса в этом раунде.';
+                playersGrid.appendChild(duelNotice);
+            }
+
+            candidates.forEach(candName => {
                 const candCard = document.createElement('div');
-                candCard.className = `voting-card ${myVote === candName ? 'selected' : ''}`;
+                candCard.className = `voting-card ${myVote === candName ? 'selected' : ''} ${!canVote ? 'disabled' : ''}`;
                 candCard.innerHTML = `
                     <div class="cand-name">${candName}</div>
                 `;
 
-                if (me && me.isAlive !== false) {
+                if (canVote) {
                     candCard.onclick = () => {
                         socket.emit('castVote', { roomId, candidateName: candName });
                     };
@@ -1067,34 +1111,116 @@ if (endGameBtn) {
     });
 }
 
-function initJournalUI() {
-    const openLogBtn = document.createElement('button');
-    openLogBtn.id = 'open-log-btn';
-    openLogBtn.textContent = '📜 Журнал';
-    
-    const gameControls = document.getElementById('game-controls');
-    if (gameControls) {
-        gameControls.appendChild(openLogBtn);
-    } else {
-        document.body.appendChild(openLogBtn);
+function updateSidebarRoleInfo(role) {
+    const rolePanel = document.getElementById('my-role-panel');
+    const roleNameEl = document.getElementById('my-role-display-name');
+    const roleDescEl = document.getElementById('my-role-display-desc');
+    if (!roleNameEl || !role) return;
+
+    roleNameEl.textContent = role;
+
+    let desc = 'Днем вычисляйте мафию на голосованиях и очистите город.';
+    let roleClass = 'role-civilian';
+
+    const rLower = role.toLowerCase();
+    if (rLower.includes('дон')) {
+        desc = 'Глава мафии. Ищите Шерифа ночью и координируйте клан.';
+        roleClass = 'role-don';
+    } else if (rLower.includes('мафия')) {
+        desc = 'Стреляйте ночью вместе с кланом и захватите город.';
+        roleClass = 'role-mafia';
+    } else if (rLower.includes('шериф')) {
+        desc = 'Ночью проверяйте игроков и ведите мирных к победе.';
+        roleClass = 'role-sheriff';
+    } else if (rLower.includes('доктор')) {
+        desc = 'Ночью лечите жителей и спасайте от ночных покушений.';
+        roleClass = 'role-doctor';
+    } else if (rLower.includes('живчик')) {
+        desc = 'Имеете 2 жизни: выдерживаете одно любое нападение.';
+        roleClass = 'role-zhivchik';
+    } else if (rLower.includes('маньяк')) {
+        desc = 'Одиночка: устраняйте жителей ночью ради личной победы.';
+        roleClass = 'role-maniac';
     }
 
-    const logModal = document.createElement('div');
-    logModal.id = 'log-modal';
-    logModal.innerHTML = `
-        <div class="log-modal-content">
-            <h3>📜 Журнал действий</h3>
-            <div id="game-log">Пусто</div>
-            <button class="log-close-btn">Закрыть</button>
-        </div>
-    `;
-    document.body.appendChild(logModal);
+    if (roleDescEl) roleDescEl.textContent = desc;
 
-    openLogBtn.onclick = () => { logModal.style.display = 'flex'; };
-    logModal.querySelector('.log-close-btn').onclick = () => { logModal.style.display = 'none'; };
+    if (rolePanel) {
+        rolePanel.className = `my-role-badge-card ${roleClass}`;
+    }
 }
 
-initJournalUI();
+function updateSidebarPlayers(players, state) {
+    const sidebarList = document.getElementById('game-sidebar-players-list');
+    const aliveCountEl = document.getElementById('sidebar-alive-count');
+    if (!sidebarList || !players) return;
+
+    const alivePlayers = players.filter(p => p.isAlive !== false);
+    if (aliveCountEl) {
+        aliveCountEl.textContent = `Живых: ${alivePlayers.length}/${players.length}`;
+    }
+
+    sidebarList.innerHTML = '';
+    players.forEach((player, index) => {
+        const pName = player.username || player.name || `Игрок ${index + 1}`;
+        const isAlive = player.isAlive !== false;
+        const isSpeaker = state && state.currentSpeaker === pName;
+        const isMe = (player.username === username || player.name === username || player.id === socket.id);
+
+        const row = document.createElement('div');
+        row.className = `sidebar-player-row ${isSpeaker ? 'is-speaker' : ''} ${!isAlive ? 'is-dead' : ''}`;
+
+        const left = document.createElement('div');
+        left.className = 'sidebar-player-left';
+        left.innerHTML = `
+            <span class="sidebar-player-num">#${index + 1}</span>
+            <span class="sidebar-player-name" title="${pName}">${pName} ${isMe ? '(Вы)' : ''}</span>
+        `;
+
+        const right = document.createElement('div');
+        right.className = 'sidebar-player-right';
+
+        const statusTag = document.createElement('span');
+        statusTag.className = `sidebar-status-tag ${isAlive ? 'alive' : 'dead'}`;
+        statusTag.textContent = isAlive ? (isSpeaker ? '🗣️ Говорит' : '🟢 Жив') : '💀 Выбыл';
+        right.appendChild(statusTag);
+
+        const audioBtn = createAudioButton(player, socket.id);
+        right.appendChild(audioBtn);
+
+        row.appendChild(left);
+        row.appendChild(right);
+        sidebarList.appendChild(row);
+    });
+}
+
+function initMobileLogDrawer() {
+    const mobileLogBtn = document.getElementById('mobile-log-toggle-btn');
+    const mobileCloseLogBtn = document.getElementById('mobile-log-close-btn');
+    const mobileLogBackdrop = document.getElementById('mobile-log-backdrop');
+    const gamePanelLog = document.getElementById('game-panel-log');
+
+    function toggleMobileLog(open) {
+        if (!gamePanelLog) return;
+        const isOpen = gamePanelLog.classList.contains('mobile-open');
+        const shouldOpen = (open !== undefined) ? open : !isOpen;
+        if (shouldOpen) {
+            gamePanelLog.classList.add('mobile-open');
+            if (mobileLogBackdrop) mobileLogBackdrop.classList.add('active');
+        } else {
+            gamePanelLog.classList.remove('mobile-open');
+            if (mobileLogBackdrop) mobileLogBackdrop.classList.remove('active');
+        }
+    }
+
+    window.toggleMobileLog = toggleMobileLog;
+
+    if (mobileLogBtn) mobileLogBtn.onclick = () => toggleMobileLog(true);
+    if (mobileCloseLogBtn) mobileCloseLogBtn.onclick = () => toggleMobileLog(false);
+    if (mobileLogBackdrop) mobileLogBackdrop.onclick = () => toggleMobileLog(false);
+}
+
+initMobileLogDrawer();
 
 window.openRoleMenu = function() {
     const modal = document.getElementById('role-select-modal');

@@ -87,10 +87,13 @@ body {
     radial-gradient(circle at 50% 50%, rgba(84,160,255,0.10) 0%, transparent 60%);
   background-attachment: fixed;
   color: var(--clr-text);
-  padding: 8px;
+  padding: 0;
+  margin: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4 { font-weight: 900; line-height: 1.2; }
@@ -100,7 +103,7 @@ h1, h2, h3, h4 { font-weight: 900; line-height: 1.2; }
    ============================================================ */
 #app {
   width: 100%;
-  max-width: 500px;
+  max-width: 520px;
   background: var(--bg-app);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -113,6 +116,337 @@ h1, h2, h3, h4 { font-weight: 900; line-height: 1.2; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin: auto;
+  box-sizing: border-box;
+  transition: max-width var(--t);
+}
+
+/* На экранах ПК для главной, профиля и магазина */
+@media (min-width: 993px) {
+  body:not(:has(.lobby-container)):not(:has(#game-screen)) #app {
+    max-width: 1120px;
+    padding: 24px;
+    margin: 24px auto;
+  }
+
+  /* ============================================================
+     Сбалансированный десктопный интерфейс для Главной страницы (Лобби)
+     ============================================================ */
+  body:has(.lobby-container) {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #app.lobby-container {
+    width: 65% !important;
+    max-width: 1280px !important;
+    min-width: 990px !important;
+    height: calc(100vh - 50px) !important;
+    margin: 25px auto !important;
+    padding: 20px 28px !important;
+    box-sizing: border-box !important;
+    background: rgba(18, 18, 28, 0.75) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    overflow: hidden !important;
+  }
+
+  /* Верхняя шапка (Header): Слева логотип, справа баланс, бонус, выйти */
+  .lobby-container header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 2px 0 12px 0 !important;
+    border-bottom: 1px solid var(--clr-border) !important;
+    margin-bottom: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .lobby-container #user-block {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  /* Двухколоночный макет под шапкой */
+  .lobby-container .lobby-content-wrapper {
+    display: grid !important;
+    grid-template-columns: 240px 1fr !important;
+    gap: 24px !important;
+    width: 100% !important;
+    flex: 1 !important;
+    height: calc(100% - 65px) !important;
+    overflow: hidden !important;
+  }
+
+  /* Левая панель навигации (ширина 240px, flex-shrink: 0) */
+  .lobby-container .lobby-nav-sidebar {
+    width: 240px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--clr-border) !important;
+    border-radius: var(--r-md) !important;
+    padding: 18px 14px !important;
+    box-shadow: var(--shadow-card) !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .lobby-container .lobby-nav-sidebar nav {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .lobby-container .lobby-nav-sidebar nav button {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    text-align: left !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    background: var(--bg-card-2) !important;
+    border: 1px solid var(--clr-border) !important;
+    border-radius: var(--r-sm) !important;
+    color: var(--clr-text) !important;
+    transition: all var(--t) !important;
+    cursor: pointer !important;
+  }
+
+  .lobby-container .lobby-nav-sidebar nav button:hover {
+    border-color: var(--clr-gold) !important;
+    background: #282b52 !important;
+    transform: translateX(4px) !important;
+    color: #fff !important;
+  }
+
+  .lobby-container .lobby-nav-sidebar nav button.active,
+  html.tab-active-lobby .lobby-container .lobby-nav-sidebar #nav-btn-lobby,
+  html.tab-active-profile .lobby-container .lobby-nav-sidebar #nav-btn-profile,
+  html.tab-active-shop .lobby-container .lobby-nav-sidebar #nav-btn-shop,
+  html.tab-active-stats .lobby-container .lobby-nav-sidebar #nav-btn-stats,
+  html.tab-active-settings .lobby-container .lobby-nav-sidebar #nav-btn-settings {
+    background: linear-gradient(135deg, var(--clr-red) 0%, #ff9f43 100%) !important;
+    border-color: var(--clr-red) !important;
+    color: #fff !important;
+    box-shadow: var(--shadow-glow-red) !important;
+    transform: none !important;
+  }
+
+  .lobby-container .lobby-sidebar-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 14px !important;
+    border-top: 1px solid var(--clr-border) !important;
+    width: 100% !important;
+  }
+
+  .lobby-container .online-counter-label {
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    color: var(--clr-teal) !important;
+  }
+
+    /* Правая рабочая зона (1fr) — карточка-контейнер */
+  .lobby-container .lobby-main-area {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    padding: 24px 20px !important;
+    box-sizing: border-box !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px !important;
+  }
+
+  .lobby-container .funny-banner {
+    max-width: 550px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 10px 16px !important;
+    font-size: 13px !important;
+  }
+
+  .lobby-container .lobby-create-section {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+
+  .lobby-container .btn-create-room {
+    max-width: 550px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 14px 20px !important;
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+  }
+
+  .lobby-container .lobby-rooms-section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    max-width: 550px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  .lobby-container .section-title {
+    display: flex !important;
+    justify-content: center !important;
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    color: var(--clr-gold) !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* Карточки комнат (#rooms-list): строго в одну колонку, max-width: 550px, центрированы */
+  .lobby-container #rooms-list,
+  .lobby-container ul.room-list-mock {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+    max-width: 550px !important;
+    margin: 0 auto !important;
+  }
+
+  .lobby-container .room-card {
+    width: 100% !important;
+    max-width: 550px !important;
+    margin: 0 auto !important;
+    padding: 14px 18px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Сетка Подпольного магазина 2х2 на десктопе */
+  .lobby-container .lobby-shop-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+    max-width: 650px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  .lobby-container .lobby-shop-card {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    text-align: center !important;
+    transition: transform var(--t), border-color var(--t), box-shadow var(--t) !important;
+  }
+
+  .lobby-container .lobby-shop-card:hover {
+    transform: translateY(-3px) !important;
+    border-color: var(--clr-gold) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 14px rgba(255, 209, 102, 0.2) !important;
+  }
+
+  .lobby-container .shop-card-icon {
+    font-size: 2.2rem !important;
+    margin-bottom: 8px !important;
+  }
+
+  .lobby-container .shop-card-title {
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+  }
+
+  .lobby-container .shop-card-desc {
+    font-size: 0.85rem !important;
+    opacity: 0.8 !important;
+  }
+
+  .lobby-container .shop-card-btn {
+    width: 100% !important;
+    margin-top: auto !important;
+  }
+
+  /* Цветовые акценты карточек магазина */
+  .lobby-container .shop-card--bronze {
+    border-color: rgba(205, 127, 50, 0.4) !important;
+    background: linear-gradient(145deg, rgba(205, 127, 50, 0.12) 0%, rgba(18, 18, 28, 0.85) 100%) !important;
+  }
+  .lobby-container .shop-card--bronze:hover {
+    border-color: #cd7f32 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(205, 127, 50, 0.4) !important;
+  }
+  .lobby-container .shop-card--bronze .shop-card-price {
+    color: #e59866 !important;
+    background: rgba(205, 127, 50, 0.16) !important;
+    border-color: rgba(205, 127, 50, 0.4) !important;
+  }
+
+  .lobby-container .shop-card--silver {
+    border-color: rgba(192, 192, 192, 0.5) !important;
+    background: linear-gradient(145deg, rgba(192, 192, 192, 0.12) 0%, rgba(18, 18, 28, 0.85) 100%) !important;
+  }
+  .lobby-container .shop-card--silver:hover {
+    border-color: #dcdde1 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(192, 192, 192, 0.45) !important;
+  }
+  .lobby-container .shop-card--silver .shop-card-price {
+    color: #dcdde1 !important;
+    background: rgba(192, 192, 192, 0.16) !important;
+    border-color: rgba(192, 192, 192, 0.4) !important;
+  }
+
+  .lobby-container .shop-card--gold {
+    border-color: rgba(255, 215, 0, 0.6) !important;
+    background: linear-gradient(145deg, rgba(255, 215, 0, 0.14) 0%, rgba(18, 18, 28, 0.85) 100%) !important;
+  }
+  .lobby-container .shop-card--gold:hover {
+    border-color: #ffd700 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.5) !important;
+  }
+  .lobby-container .shop-card--gold .shop-card-price {
+    color: #ffd700 !important;
+    background: rgba(255, 215, 0, 0.16) !important;
+    border-color: rgba(255, 215, 0, 0.45) !important;
+  }
+
+  .lobby-container .shop-card--role {
+    border-color: rgba(168, 85, 247, 0.6) !important;
+    background: linear-gradient(145deg, rgba(168, 85, 247, 0.14) 0%, rgba(18, 18, 28, 0.85) 100%) !important;
+  }
+  .lobby-container .shop-card--role:hover {
+    border-color: #c084fc !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(168, 85, 247, 0.5) !important;
+  }
+  .lobby-container .shop-card--role .shop-card-price {
+    color: #c084fc !important;
+    background: rgba(168, 85, 247, 0.16) !important;
+    border-color: rgba(168, 85, 247, 0.45) !important;
+  }
 }
 
 /* Декоративная полоса сверху */
@@ -234,11 +568,154 @@ nav button {
   font-family: inherit;
 }
 
-nav button.active {
-  background: linear-gradient(135deg, var(--clr-red) 0%, #ff9f43 100%);
+nav button.active,
+html.tab-active-lobby #nav-btn-lobby,
+html.tab-active-profile #nav-btn-profile,
+html.tab-active-shop #nav-btn-shop,
+html.tab-active-stats #nav-btn-stats,
+html.tab-active-settings #nav-btn-settings {
+  background: var(--clr-red);
   color: #fff;
   border-color: var(--clr-red);
-  box-shadow: var(--shadow-glow-red);
+}
+
+/* Анти-мерцание (Anti-FOUC): скрываем контент рабочей зоны до определения активной вкладки */
+.lobby-main-area {
+  opacity: 0;
+}
+
+html.tab-ready .lobby-main-area {
+  opacity: 1;
+  transition: opacity 0.15s ease-out;
+}
+
+/* Вкладки в правой рабочей зоне лобби */
+.lobby-tab-section {
+  display: none;
+  width: 100%;
+  animation: fadeIn 0.22s ease-out;
+}
+
+.lobby-tab-section.active,
+html.tab-active-lobby #tab-lobby,
+html.tab-active-profile #tab-profile,
+html.tab-active-shop #tab-shop,
+html.tab-active-stats #tab-stats,
+html.tab-active-settings #tab-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+/* Карточки подпольного магазина в лобби */
+.lobby-shop-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.lobby-shop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+  box-sizing: border-box;
+}
+
+.lobby-shop-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--clr-gold);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 12px rgba(255, 209, 102, 0.15);
+}
+
+.shop-card-icon {
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.shop-card-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.shop-card-desc {
+  font-size: 0.85rem;
+  color: var(--clr-muted);
+  opacity: 0.8;
+  margin-bottom: 10px;
+  line-height: 1.3;
+}
+
+.shop-card-price {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--clr-gold);
+  background: rgba(255, 209, 102, 0.12);
+  border: 1px solid rgba(255, 209, 102, 0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shop-card-btn {
+  width: 100%;
+  padding: 10px 14px;
+  font-weight: 800;
+  margin-top: auto;
+}
+
+.shop-card--bronze {
+  border-color: rgba(205, 127, 50, 0.4);
+  background: linear-gradient(145deg, rgba(205, 127, 50, 0.12) 0%, rgba(18, 18, 28, 0.85) 100%);
+}
+.shop-card--bronze .shop-card-price {
+  color: #e59866;
+  background: rgba(205, 127, 50, 0.16);
+  border-color: rgba(205, 127, 50, 0.4);
+}
+
+.shop-card--silver {
+  border-color: rgba(192, 192, 192, 0.5);
+  background: linear-gradient(145deg, rgba(192, 192, 192, 0.12) 0%, rgba(18, 18, 28, 0.85) 100%);
+}
+.shop-card--silver .shop-card-price {
+  color: #dcdde1;
+  background: rgba(192, 192, 192, 0.16);
+  border-color: rgba(192, 192, 192, 0.4);
+}
+
+.shop-card--gold {
+  border-color: rgba(255, 215, 0, 0.6);
+  background: linear-gradient(145deg, rgba(255, 215, 0, 0.14) 0%, rgba(18, 18, 28, 0.85) 100%);
+}
+.shop-card--gold .shop-card-price {
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.16);
+  border-color: rgba(255, 215, 0, 0.45);
+}
+
+.shop-card--role {
+  border-color: rgba(168, 85, 247, 0.6);
+  background: linear-gradient(145deg, rgba(168, 85, 247, 0.14) 0%, rgba(18, 18, 28, 0.85) 100%);
+}
+.shop-card--role .shop-card-price {
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.16);
+  border-color: rgba(168, 85, 247, 0.45);
 }
 
 /* ============================================================
@@ -331,6 +808,40 @@ ul.room-list-mock {
   flex-direction: column;
   gap: 10px;
   padding: 0;
+}
+
+/* Базовая разметка лобби (по умолчанию/мобильные) */
+.lobby-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.lobby-nav-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.lobby-sidebar-footer {
+  display: none;
+}
+
+.lobby-main-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.lobby-create-section,
+.lobby-rooms-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
 }
 
 .room-card {
@@ -488,206 +999,364 @@ ul.room-list-mock {
 }
 
 /* ============================================================
-   9. Игровой экран — шапка и контролы
+   9. Игровой экран — Трехзонный макет (ПК и Мобильный)
    ============================================================ */
+
+/* Базовый макет игрового экрана */
+.game-fullscreen-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+/* ДЕСКТОПНЫЙ РЕЖИМ (ПК и Ноутбуки) */
+@media (min-width: 993px) {
+  body:has(#game-screen) {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    height: 100vh !important;
+    width: 100vw !important;
+  }
+
+  body:has(#game-screen) #app {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .game-fullscreen-layout {
+    display: grid !important;
+    grid-template-columns: 290px 1fr 330px;
+    grid-template-rows: 62px 1fr;
+    grid-template-areas:
+      "header  header  header"
+      "left    center  right";
+    width: 100vw;
+    height: 100vh;
+    padding: 14px 18px 16px 18px;
+    gap: 14px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .game-header-area    { grid-area: header; margin-bottom: 0 !important; }
+  .game-panel-left     { grid-area: left; display: flex; flex-direction: column; gap: 10px; overflow: hidden; height: 100%; }
+  .game-panel-center   { grid-area: center; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; height: 100%; position: relative; padding: 0 8px; }
+  .game-panel-right    { grid-area: right; display: flex; flex-direction: column; gap: 8px; overflow: hidden; background: var(--bg-card); border: 1px solid var(--clr-border); border-radius: var(--r-md); padding: 14px; box-shadow: var(--shadow-card); height: 100%; }
+
+  .mobile-log-btn      { display: none !important; }
+  .mobile-close-log-btn{ display: none !important; }
+  .mobile-backdrop     { display: none !important; }
+
+  .game-log-inline {
+    flex: 1;
+    height: 100% !important;
+    max-height: calc(100vh - 160px) !important;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.35);
+    margin: 0;
+  }
+
+  .sidebar-players-scroll {
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 275px);
+  }
+}
+
+/* МОБИЛЬНЫЙ РЕЖИМ (Смартфоны) */
+@media (max-width: 992px) {
+  body {
+    padding: 6px;
+    overflow-y: auto;
+  }
+
+  .game-fullscreen-layout {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    min-height: auto;
+  }
+
+  .game-panel-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sidebar-players-scroll {
+    display: none; /* На мобильных список скрыт для экономии вертикального пространства */
+  }
+
+  .mobile-log-btn {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    background: var(--bg-card-2);
+    border: 1px solid var(--clr-border);
+    color: var(--clr-gold);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+  }
+
+  .game-panel-right {
+    position: fixed;
+    top: 0;
+    right: -105%;
+    width: 86%;
+    max-width: 380px;
+    height: 100vh;
+    background: var(--bg-card);
+    z-index: 2500;
+    padding: 18px 14px;
+    box-shadow: -10px 0 35px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-sizing: border-box;
+  }
+
+  .game-panel-right.mobile-open {
+    right: 0;
+  }
+
+  .mobile-close-log-btn {
+    display: block !important;
+    background: transparent;
+    border: none;
+    color: var(--clr-muted);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+
+  .mobile-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(4px);
+    z-index: 2400;
+  }
+
+  .mobile-backdrop.active {
+    display: block;
+  }
+
+  .game-bottom-controls {
+    position: sticky;
+    bottom: 0;
+    background: rgba(16, 18, 40, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 10px 0;
+    border-top: 1px solid var(--clr-border);
+    margin-top: 14px;
+  }
+
+  .game-bottom-controls button {
+    min-height: 48px;
+    font-size: 0.95rem;
+    flex: 1;
+  }
+}
+
+/* Шапка игры */
 #game-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: var(--bg-card);
-  padding: 10px 14px;
+  padding: 10px 18px;
   border-radius: var(--r-md);
   width: 100%;
-  margin-bottom: 18px;
   border: 1px solid var(--clr-border);
   box-shadow: var(--shadow-card);
+  box-sizing: border-box;
 }
 
-#day-counter  { font-size: 0.85rem; font-weight: 700; color: var(--clr-muted); }
-#game-phase   { font-size: 0.85rem; font-weight: 700; color: var(--clr-gold); text-align: center; flex: 1; padding: 0 8px; }
-#phase-timer  { font-size: 1.1rem; font-weight: 900; color: var(--clr-red); font-variant-numeric: tabular-nums; }
+.game-header-left   { display: flex; align-items: center; gap: 8px; }
+.game-header-center { display: flex; align-items: center; justify-content: center; flex: 1; padding: 0 12px; }
+.game-header-right  { display: flex; align-items: center; gap: 10px; }
 
-#game-controls {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
+#day-counter  { font-size: 0.9rem; font-weight: 800; color: var(--clr-muted); }
+#game-phase   { font-size: 0.95rem; font-weight: 800; color: var(--clr-gold); text-align: center; }
+#phase-timer  { font-size: 1.25rem; font-weight: 900; color: var(--clr-red); font-variant-numeric: tabular-nums; }
 
-#skip-count    { color: var(--clr-muted); font-size: 0.75rem; }
-#finish-speech-btn { background: var(--bg-card-2); border: 1px solid var(--clr-border); color: var(--clr-text); }
-
-#skip-night-btn          { background: rgba(192,57,43,0.25); border: 1px solid var(--clr-red); color: var(--clr-red); }
-#skip-night-btn:hover    { background: rgba(192,57,43,0.4); }
-#skip-night-btn:disabled { opacity: 0.45; cursor: not-allowed; background: var(--bg-card-2); border-color: var(--clr-border); color: var(--clr-muted); }
-
-#open-log-btn  { background: var(--bg-card-2); border: 1px solid var(--clr-border); color: var(--clr-muted); padding: 6px 12px; }
-
-/* ============================================================
-   10. Игровые фазы — сетки и карточки игроков
-   ============================================================ */
-
-/* Фаза 0 — знакомство с ролью / ожидание */
-#players-grid.grid-mode {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  max-width: 320px;
-  margin: 0 auto;
-}
-
-/* Фаза 2/4 — один оратор */
-#players-grid.single-speaker-mode {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding-top: 10px;
-  min-height: 220px;
-}
-
-.player-card {
-  aspect-ratio: 1 / 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  border: 1px solid var(--clr-border);
-  border-radius: var(--r-md);
-  padding: 10px;
-  text-align: center;
-  background: var(--bg-card);
-  transition: border-color var(--t), transform var(--t), box-shadow var(--t);
-}
-
-.player-card:hover { border-color: var(--clr-muted); transform: translateY(-2px); }
-
-.player-card.offline { opacity: 0.55; border-color: var(--clr-red); }
-.player-card.dead    { background: rgba(192,57,43,0.12); border-color: rgba(255,83,112,0.4); opacity: 0.75; }
-
-.player-name   { font-size: 0.85rem; font-weight: 700; word-break: break-word; }
-.player-status { font-size: 0.7rem; color: var(--clr-muted); margin-top: 4px; }
-.my-role       { font-size: 0.7rem; color: var(--clr-red); margin-top: 2px; }
-
-/* Карточка оратора */
-.speaker-card {
-  width: 180px;
-  height: 180px;
-  aspect-ratio: unset;
-  border: 2px solid var(--clr-gold);
-  box-shadow: var(--shadow-glow-gold);
-  background: var(--bg-card-2);
-  animation: pulse-speaker 2s infinite ease-in-out;
-}
-
-.speaker-label {
-  font-size: 0.75rem;
-  color: var(--clr-gold);
-  margin-top: 8px;
-  font-weight: 700;
-}
-
-/* Подсказка ночной фазы */
-.night-hint {
-  width: 100%;
-  text-align: center;
-  margin-bottom: 12px;
-  font-weight: 700;
-  color: var(--clr-gold);
-  font-size: 0.95rem;
-}
-
-/* ============================================================
-   11. Фаза договорки (0.5)
-   ============================================================ */
-.night-mode-civilian {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  text-align: center;
-}
-
-.night-banner {
+/* Левая панель: карточка роли */
+.my-role-badge-card {
   background: var(--bg-card);
   border: 1px solid var(--clr-border);
   border-radius: var(--r-md);
-  padding: 22px 18px;
-  max-width: 330px;
-  width: 100%;
+  padding: 12px 14px;
   box-shadow: var(--shadow-card);
+  transition: border-color var(--t), box-shadow var(--t);
+  position: relative;
+  overflow: hidden;
 }
 
-.night-banner h3 { color: var(--clr-gold); font-size: 1.1rem; margin-bottom: 8px; }
-.night-banner p  { font-size: 0.85rem; color: var(--clr-muted); }
-
-.moon-icon { font-size: 2.4rem; margin-bottom: 10px; }
-
-/* Баннер договорки — красная тема для мафии */
-.huddle-banner--mafia {
-  border: 2px solid var(--clr-red);
-  background: rgba(100,0,0,0.18);
+.my-role-badge-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: var(--clr-blue);
+  border-radius: var(--r-md) 0 0 var(--r-md);
 }
 
-.huddle-banner--mafia h3 { color: var(--clr-red); }
-.huddle-banner--mafia p  { color: #f5b7b1; }
+.my-role-badge-card.role-mafia::before   { background: var(--clr-red); }
+.my-role-badge-card.role-mafia          { border-color: rgba(255,83,112,0.4); box-shadow: var(--shadow-glow-red); }
+.my-role-badge-card.role-don::before     { background: var(--clr-gold); }
+.my-role-badge-card.role-don            { border-color: rgba(255,209,102,0.4); box-shadow: var(--shadow-glow-gold); }
+.my-role-badge-card.role-sheriff::before { background: var(--clr-gold); }
+.my-role-badge-card.role-sheriff        { border-color: rgba(255,209,102,0.4); }
+.my-role-badge-card.role-doctor::before  { background: var(--clr-teal); }
+.my-role-badge-card.role-doctor         { border-color: rgba(29,209,161,0.4); }
+.my-role-badge-card.role-zhivchik::before{ background: var(--clr-purple); }
+.my-role-badge-card.role-maniac::before  { background: #ff6348; }
 
-.huddle-team-list {
-  margin-top: 12px;
-  font-size: 0.9rem;
-  color: var(--clr-gold);
-  opacity: 0.9;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px;
+.my-role-badge-header {
+  font-size: 0.72rem;
+  color: var(--clr-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  margin-bottom: 2px;
 }
 
-.huddle-team-tag {
-  display: inline-block;
-  padding: 2px 9px;
-  background: rgba(192,57,43,0.3);
-  border-radius: 5px;
-  font-size: 0.82rem;
+.my-role-name {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
 }
 
-/* ============================================================
-   12. Фаза ночи — активные роли
-   ============================================================ */
-#players-grid.voting-mode {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 360px;
-  margin: 0 auto;
+.my-role-desc {
+  font-size: 0.8rem;
+  color: var(--clr-muted);
+  margin-top: 3px;
+  line-height: 1.3;
 }
 
-.voting-card {
-  background: var(--bg-card);
-  border: 1px solid var(--clr-border);
-  padding: 13px 16px;
-  border-radius: var(--r-md);
+.panel-section-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
-  transition: border-color var(--t), background var(--t), box-shadow var(--t), transform var(--t);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--clr-gold);
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--clr-border);
+  margin-bottom: 8px;
 }
 
-.voting-card:hover     { border-color: var(--clr-gold); transform: translateY(-1px); }
-.voting-card.selected  { border-color: var(--clr-red); background: rgba(192,57,43,0.15); box-shadow: var(--shadow-glow-red); }
-
-.cand-name  { font-size: 0.9rem; font-weight: 700; }
-.vote-count { font-size: 0.8rem; color: var(--clr-muted); }
-
-.votes-counter {
-  width: 100%;
-  text-align: center;
-  margin-bottom: 14px;
+.sidebar-count-badge {
+  font-size: 0.75rem;
   font-weight: 700;
-  font-size: 1rem;
+  color: var(--clr-teal);
+  background: rgba(29,209,161,0.12);
+  padding: 2px 7px;
+  border-radius: var(--r-sm);
+}
+
+.sidebar-players-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.sidebar-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  font-size: 0.82rem;
+  transition: background var(--t), border-color var(--t);
+}
+
+.sidebar-player-row.is-speaker {
+  border-color: var(--clr-gold);
+  background: rgba(255,209,102,0.1);
+}
+
+.sidebar-player-row.is-dead {
+  opacity: 0.5;
+  background: rgba(192,57,43,0.08);
+  border-color: rgba(255,83,112,0.25);
+}
+
+.sidebar-player-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar-player-num {
+  font-weight: 900;
+  font-size: 0.75rem;
+  color: var(--clr-muted);
+  min-width: 16px;
+}
+
+.sidebar-player-name {
+  font-weight: 700;
   color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-player-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sidebar-status-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.sidebar-status-tag.alive { color: var(--clr-teal); background: rgba(29,209,161,0.15); }
+.sidebar-status-tag.dead  { color: var(--clr-red); background: rgba(255,83,112,0.15); }
+
+/* Правая панель: Журнал событий */
+.log-panel-header {
+  margin-bottom: 8px;
+}
+
+.game-log-inline {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.3);
+  padding: 10px;
+  border-radius: var(--r-sm);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  scrollbar-width: thin;
+  scrollbar-color: var(--clr-border) transparent;
 }
 
 /* Ночные роли */

@@ -76,6 +76,88 @@ function switchAuthTab(tab) {
     }
 }
 
+// Динамическое переключение вкладок в лобби
+function switchLobbyTab(tabName) {
+    const tabs = ['lobby', 'profile', 'shop', 'stats', 'settings'];
+    const activeTab = tabs.includes(tabName) ? tabName : 'lobby';
+
+    try {
+        localStorage.setItem('activeLobbyTab', activeTab);
+    } catch (e) {
+        console.error('Ошибка сохранения активной вкладки:', e);
+    }
+    
+    tabs.forEach(name => {
+        document.documentElement.classList.remove(`tab-active-${name}`);
+        const btn = document.getElementById(`nav-btn-${name}`);
+        const content = document.getElementById(`tab-${name}`);
+        
+        if (btn) {
+            if (name === activeTab) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+        
+        if (content) {
+            if (name === activeTab) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        }
+    });
+
+    document.documentElement.classList.add(`tab-active-${activeTab}`);
+
+    if (activeTab === 'lobby') {
+        loadRooms();
+    } else if (activeTab === 'profile') {
+        loadTabProfile();
+    }
+}
+
+// Загрузка данных пользователя для вкладки "Профиль"
+async function loadTabProfile() {
+    try {
+        const res = await fetch('/api/user/profile', { credentials: 'include' });
+        if (res.ok) {
+            const user = await res.json();
+            if (user) {
+                const usernameEl = document.getElementById('tab-profile-username');
+                const idEl = document.getElementById('tab-profile-id');
+                const balanceEl = document.getElementById('tab-profile-balance');
+                const levelEl = document.getElementById('tab-profile-level');
+                const xpTextEl = document.getElementById('tab-profile-xp-text');
+                const xpBarEl = document.getElementById('tab-profile-xp-bar');
+
+                if (usernameEl) usernameEl.textContent = user.username || 'Гость';
+                if (idEl) idEl.textContent = user.id || '—';
+                if (balanceEl) balanceEl.textContent = user.balance ?? 0;
+
+                // XP и расчет уровня
+                const totalXp = user.xp || 0;
+                let level = 1;
+                let reqNext = 10;
+                let curXp = totalXp;
+                while (curXp >= reqNext) {
+                    curXp -= reqNext;
+                    level++;
+                    reqNext = level * 10;
+                }
+                const progress = Math.min(100, Math.floor((curXp / reqNext) * 100));
+
+                if (levelEl) levelEl.textContent = `${level} ур.`;
+                if (xpTextEl) xpTextEl.textContent = `${curXp} / ${reqNext} XP`;
+                if (xpBarEl) xpBarEl.style.width = `${progress}%`;
+            }
+        }
+    } catch (e) {
+        console.error('Ошибка загрузки профиля для вкладки:', e);
+    }
+}
+
 function setLoggedInUser(username) {
     const authBtn = document.getElementById('btn-auth');
     if (authBtn) authBtn.style.display = 'none';
@@ -207,7 +289,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkLocalUser();
     }
 
-    loadRooms();
+    // Инициализация переключения вкладок навигации
+    ['lobby', 'profile', 'shop', 'stats', 'settings'].forEach(tab => {
+        const btn = document.getElementById(`nav-btn-${tab}`);
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchLobbyTab(tab);
+            });
+        }
+    });
+
+    // Восстановление активной вкладки из localStorage (по умолчанию 'lobby')
+    const savedTab = localStorage.getItem('activeLobbyTab') || 'lobby';
+    switchLobbyTab(savedTab);
 });
 
 // Функция создания и показа интерактивного модального окна сундука
