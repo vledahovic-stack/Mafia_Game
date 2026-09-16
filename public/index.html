@@ -45,12 +45,18 @@
 
     <!-- Выпадающее гамбургер-меню для мобильной версии -->
     <div id="mobile-dropdown-menu" class="mobile-dropdown-menu">
+        <button id="mobile-btn-bonus" class="mobile-menu-item mobile-menu-item--bonus" style="display: none;" onclick="claimDailyBonus(); closeMobileMenu();">🎁 Получить бонус</button>
+        <div id="mobile-menu-divider-bonus" class="mobile-menu-divider" style="display: none;"></div>
+
         <button id="mobile-nav-btn-lobby" class="mobile-menu-item" onclick="switchMobileTab('lobby')">🏠 Лобби</button>
         <button id="mobile-nav-btn-profile" class="mobile-menu-item" onclick="switchMobileTab('profile')">👤 Профиль</button>
         <button id="mobile-nav-btn-shop" class="mobile-menu-item" onclick="switchMobileTab('shop')">🍕 Магазин</button>
         <button id="mobile-nav-btn-stats" class="mobile-menu-item" onclick="switchMobileTab('stats')">🏆 Статистика</button>
         <button id="mobile-nav-btn-settings" class="mobile-menu-item" onclick="switchMobileTab('settings')">⚙️ Настройки</button>
         <button id="mobile-nav-btn-admin" class="mobile-menu-item btn-admin-panel" style="display: none;" onclick="window.location.href='/admin.html'">🎩 Панель админа</button>
+
+        <div id="mobile-menu-divider-logout" class="mobile-menu-divider" style="display: none;"></div>
+        <button id="mobile-btn-logout" class="mobile-menu-item mobile-menu-item--logout" style="display: none;" onclick="handleLogout()">🚪 Выйти</button>
     </div>
     <div id="mobile-menu-backdrop" class="mobile-menu-backdrop" onclick="closeMobileMenu()"></div>
 

@@ -2784,6 +2784,7 @@ ul.room-list-mock {
     padding: 2px 0 4px 0 !important;
     margin: 0 !important;
     flex-shrink: 0 !important;
+    position: relative !important;
     border-bottom: 1px solid var(--clr-border) !important;
   }
 
@@ -2792,6 +2793,27 @@ ul.room-list-mock {
     align-items: center !important;
     gap: 6px !important;
     flex-shrink: 0 !important;
+  }
+
+  /* Для авторизованного пользователя: в шапке на мобильных скрываем кнопки «Бонус» и «Выйти» */
+  .lobby-container #user-block #btn-daily-bonus,
+  .lobby-container #user-block #btn-logout {
+    display: none !important;
+  }
+
+  /* Баланс по центру шапки на мобильных */
+  .lobby-container #user-balance {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    color: var(--clr-gold) !important;
+    background: rgba(255, 209, 102, 0.12) !important;
+    border: 1px solid rgba(255, 209, 102, 0.3) !important;
+    padding: 3px 9px !important;
+    border-radius: 12px !important;
+    white-space: nowrap !important;
   }
 
   /* Скрываем стандартную горизонтальную панель кнопок на мобильных */
@@ -2890,10 +2912,39 @@ ul.room-list-mock {
     box-shadow: var(--shadow-glow-red) !important;
   }
 
+  .mobile-menu-item.mobile-menu-item--bonus {
+    background: linear-gradient(135deg, rgba(255, 209, 102, 0.2) 0%, rgba(247, 127, 0, 0.2) 100%) !important;
+    border: 1px solid rgba(255, 209, 102, 0.5) !important;
+    color: var(--clr-gold) !important;
+    font-weight: 800 !important;
+  }
+
+  .mobile-menu-item.mobile-menu-item--bonus:active {
+    background: linear-gradient(135deg, #ffd166 0%, #f77f00 100%) !important;
+    color: #000 !important;
+  }
+
   .mobile-menu-item.btn-admin-panel {
     background: linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(255, 159, 67, 0.15) 100%) !important;
     border: 1px solid rgba(255, 71, 87, 0.45) !important;
     color: #ff6b81 !important;
+  }
+
+  .mobile-menu-item.mobile-menu-item--logout {
+    background: rgba(255, 83, 112, 0.12) !important;
+    border: 1px solid rgba(255, 83, 112, 0.35) !important;
+    color: #ff6b81 !important;
+    margin-top: 2px !important;
+  }
+
+  .mobile-menu-item.mobile-menu-item--logout:active {
+    background: rgba(255, 83, 112, 0.25) !important;
+  }
+
+  .mobile-menu-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 2px 0;
   }
 
   .mobile-menu-backdrop {
@@ -3772,6 +3823,10 @@ ul.room-list-mock {
 .mobile-dropdown-menu,
 .mobile-menu-backdrop,
 #mobile-nav-btn-admin,
+#mobile-btn-bonus,
+#mobile-btn-logout,
+#mobile-menu-divider-bonus,
+#mobile-menu-divider-logout,
 #auth-register-content,
 #admin-panel-btn,
 #btn-admin-panel,

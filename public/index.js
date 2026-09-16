@@ -294,6 +294,20 @@ async function loadTabProfile() {
     }
 }
 
+async function handleLogout() {
+    closeMobileMenu();
+    try {
+        await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+    } catch(e) {
+        console.error('Ошибка при выходе:', e);
+    }
+    clearAuthData();
+    setLoggedOutUser();
+    if (typeof loadTabProfile === 'function') {
+        loadTabProfile();
+    }
+}
+
 function setLoggedInUser(username, balance, isAdmin) {
     const authBtn = document.getElementById('btn-auth');
     if (authBtn) authBtn.style.display = 'none';
@@ -306,6 +320,16 @@ function setLoggedInUser(username, balance, isAdmin) {
         bonusBtn.style.display = 'inline-block';
         bonusBtn.onclick = claimDailyBonus;
     }
+
+    const mobileBonusBtn = document.getElementById('mobile-btn-bonus');
+    const mobileLogoutBtn = document.getElementById('mobile-btn-logout');
+    const mobileDividerBonus = document.getElementById('mobile-menu-divider-bonus');
+    const mobileDividerLogout = document.getElementById('mobile-menu-divider-logout');
+
+    if (mobileBonusBtn) mobileBonusBtn.style.display = 'flex';
+    if (mobileLogoutBtn) mobileLogoutBtn.style.display = 'flex';
+    if (mobileDividerBonus) mobileDividerBonus.style.display = 'block';
+    if (mobileDividerLogout) mobileDividerLogout.style.display = 'block';
 
     const isUserAdmin = isAdmin === true || isAdmin === 1;
     const adminBtn = document.getElementById('btn-admin-panel');
@@ -339,6 +363,16 @@ function setLoggedOutUser() {
 
     const mobileAdminBtn = document.getElementById('mobile-nav-btn-admin');
     if (mobileAdminBtn) mobileAdminBtn.style.display = 'none';
+
+    const mobileBonusBtn = document.getElementById('mobile-btn-bonus');
+    const mobileLogoutBtn = document.getElementById('mobile-btn-logout');
+    const mobileDividerBonus = document.getElementById('mobile-menu-divider-bonus');
+    const mobileDividerLogout = document.getElementById('mobile-menu-divider-logout');
+
+    if (mobileBonusBtn) mobileBonusBtn.style.display = 'none';
+    if (mobileLogoutBtn) mobileLogoutBtn.style.display = 'none';
+    if (mobileDividerBonus) mobileDividerBonus.style.display = 'none';
+    if (mobileDividerLogout) mobileDividerLogout.style.display = 'none';
 
     const balanceElem = document.getElementById('user-balance');
     if (balanceElem) balanceElem.style.display = 'none';
@@ -753,19 +787,9 @@ async function claimWelcomeChest() {
 
 document.getElementById('btn-claim-welcome-chest')?.addEventListener('click', claimWelcomeChest);
 
-// Обработка кнопки выхода
-document.getElementById('btn-logout').addEventListener('click', async () => {
-    try {
-        await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-    } catch(e) {
-        console.error('Ошибка при выходе:', e);
-    }
-    clearAuthData();
-    setLoggedOutUser();
-    if (typeof loadTabProfile === 'function') {
-        loadTabProfile();
-    }
-});
+// Обработка кнопок выхода
+document.getElementById('btn-logout')?.addEventListener('click', handleLogout);
+document.getElementById('mobile-btn-logout')?.addEventListener('click', handleLogout);
 
 // Блокировка масштабирования двухпальцевым жестом на Android
 document.addEventListener('touchmove', function(e) {
