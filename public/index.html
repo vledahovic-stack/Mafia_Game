@@ -39,8 +39,20 @@
             <button id="btn-daily-bonus" onclick="claimDailyBonus()">🎁 Бонус</button>
             <button id="btn-auth" onclick="openModal('modal-auth')">Авторизация</button>
             <button id="btn-logout">Выйти</button>
+            <button id="mobile-menu-btn" class="mobile-hamburger-btn" type="button" aria-label="Меню" onclick="toggleMobileMenu(event)">☰</button>
         </div>
     </header>
+
+    <!-- Выпадающее гамбургер-меню для мобильной версии -->
+    <div id="mobile-dropdown-menu" class="mobile-dropdown-menu">
+        <button id="mobile-nav-btn-lobby" class="mobile-menu-item" onclick="switchMobileTab('lobby')">🏠 Лобби</button>
+        <button id="mobile-nav-btn-profile" class="mobile-menu-item" onclick="switchMobileTab('profile')">👤 Профиль</button>
+        <button id="mobile-nav-btn-shop" class="mobile-menu-item" onclick="switchMobileTab('shop')">🍕 Магазин</button>
+        <button id="mobile-nav-btn-stats" class="mobile-menu-item" onclick="switchMobileTab('stats')">🏆 Статистика</button>
+        <button id="mobile-nav-btn-settings" class="mobile-menu-item" onclick="switchMobileTab('settings')">⚙️ Настройки</button>
+        <button id="mobile-nav-btn-admin" class="mobile-menu-item btn-admin-panel" style="display: none;" onclick="window.location.href='/admin.html'">🎩 Панель админа</button>
+    </div>
+    <div id="mobile-menu-backdrop" class="mobile-menu-backdrop" onclick="closeMobileMenu()"></div>
 
     <!-- Двухколоночный макет под шапкой на ПК / Поточный на мобильных -->
     <div class="lobby-content-wrapper">

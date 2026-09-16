@@ -184,6 +184,7 @@ function switchLobbyTab(tabName) {
     tabs.forEach(name => {
         document.documentElement.classList.remove(`tab-active-${name}`);
         const btn = document.getElementById(`nav-btn-${name}`);
+        const mobileBtn = document.getElementById(`mobile-nav-btn-${name}`);
         const content = document.getElementById(`tab-${name}`);
         
         if (btn) {
@@ -191,6 +192,14 @@ function switchLobbyTab(tabName) {
                 btn.classList.add('active');
             } else {
                 btn.classList.remove('active');
+            }
+        }
+
+        if (mobileBtn) {
+            if (name === activeTab) {
+                mobileBtn.classList.add('active');
+            } else {
+                mobileBtn.classList.remove('active');
             }
         }
         
@@ -211,6 +220,39 @@ function switchLobbyTab(tabName) {
         loadTabProfile();
     }
 }
+
+// Управление мобильным гамбургер-меню
+function toggleMobileMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('mobile-dropdown-menu');
+    const backdrop = document.getElementById('mobile-menu-backdrop');
+    if (!menu) return;
+    const isOpen = menu.classList.toggle('open');
+    if (backdrop) backdrop.classList.toggle('open', isOpen);
+}
+
+function closeMobileMenu() {
+    const menu = document.getElementById('mobile-dropdown-menu');
+    const backdrop = document.getElementById('mobile-menu-backdrop');
+    if (menu) menu.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('open');
+}
+
+function switchMobileTab(tabName) {
+    closeMobileMenu();
+    switchLobbyTab(tabName);
+}
+
+// Закрытие меню при клике вне его области
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('mobile-dropdown-menu');
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    if (menu && menu.classList.contains('open')) {
+        if (!menu.contains(e.target) && !menuBtn?.contains(e.target)) {
+            closeMobileMenu();
+        }
+    }
+});
 
 // Загрузка данных пользователя для вкладки "Профиль"
 async function loadTabProfile() {
@@ -265,10 +307,14 @@ function setLoggedInUser(username, balance, isAdmin) {
         bonusBtn.onclick = claimDailyBonus;
     }
 
+    const isUserAdmin = isAdmin === true || isAdmin === 1;
     const adminBtn = document.getElementById('btn-admin-panel');
     if (adminBtn) {
-        const isUserAdmin = isAdmin === true || isAdmin === 1;
         adminBtn.style.display = isUserAdmin ? 'flex' : 'none';
+    }
+    const mobileAdminBtn = document.getElementById('mobile-nav-btn-admin');
+    if (mobileAdminBtn) {
+        mobileAdminBtn.style.display = isUserAdmin ? 'flex' : 'none';
     }
 
     const balanceElem = document.getElementById('user-balance');
@@ -290,6 +336,9 @@ function setLoggedOutUser() {
     
     const adminBtn = document.getElementById('btn-admin-panel');
     if (adminBtn) adminBtn.style.display = 'none';
+
+    const mobileAdminBtn = document.getElementById('mobile-nav-btn-admin');
+    if (mobileAdminBtn) mobileAdminBtn.style.display = 'none';
 
     const balanceElem = document.getElementById('user-balance');
     if (balanceElem) balanceElem.style.display = 'none';

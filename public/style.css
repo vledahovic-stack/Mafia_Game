@@ -2731,22 +2731,262 @@ ul.room-list-mock {
   body {
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    height: 100%;
+    min-height: 100dvh;
+  }
+
+  body:has(.lobby-container),
+  body:has(#app.lobby-container) {
+    overflow: hidden;
+    height: 100dvh;
+    max-height: 100dvh;
   }
 
   .app-container,
   .game-fullscreen-layout,
   .lobby-fullscreen-layout,
   .main-wrapper,
-  .page-container,
-  .lobby-container,
-  #app {
-    min-height: 100vh !important;
+  .page-container {
+    min-height: 100dvh !important;
     height: 100% !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
     border-radius: 0 !important;
+  }
+
+  /* Главный контейнер лобби — фиксированная высота 100dvh, flexbox, без общего скролла */
+  #app.lobby-container,
+  .lobby-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 100dvh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 8px 10px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    gap: 8px !important;
+  }
+
+  /* 1. ФИКСИРОВАННАЯ ЧАСТЬ: Шапка */
+  .lobby-container header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 2px 0 4px 0 !important;
+    margin: 0 !important;
+    flex-shrink: 0 !important;
+    border-bottom: 1px solid var(--clr-border) !important;
+  }
+
+  .lobby-container #user-block {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Скрываем стандартную горизонтальную панель кнопок на мобильных */
+  .lobby-container .lobby-nav-sidebar,
+  .lobby-nav-sidebar {
+    display: none !important;
+  }
+
+  /* Кнопка гамбургер-меню (☰) в шапке */
+  .mobile-hamburger-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+    background: var(--bg-card-2);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--r-sm);
+    color: var(--clr-gold);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--t);
+  }
+
+  .mobile-hamburger-btn:active {
+    transform: scale(0.92);
+    background: var(--clr-border);
+  }
+
+  /* Выпадающее мобильное меню */
+  .mobile-dropdown-menu {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px;
+    position: absolute;
+    top: 50px;
+    right: 10px;
+    width: 210px;
+    max-width: calc(100vw - 20px);
+    background: rgba(24, 26, 48, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--r-md);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(255, 83, 112, 0.2);
+    padding: 10px;
+    z-index: 2100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(0.96);
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+    pointer-events: none;
+  }
+
+  .mobile-dropdown-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  .mobile-menu-item {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card-2);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--r-sm);
+    color: var(--clr-text);
+    cursor: pointer;
+    transition: all var(--t);
+  }
+
+  .mobile-menu-item:active {
+    transform: scale(0.98);
+  }
+
+  .mobile-menu-item.active,
+  html.tab-active-lobby .mobile-dropdown-menu #mobile-nav-btn-lobby,
+  html.tab-active-profile .mobile-dropdown-menu #mobile-nav-btn-profile,
+  html.tab-active-shop .mobile-dropdown-menu #mobile-nav-btn-shop,
+  html.tab-active-stats .mobile-dropdown-menu #mobile-nav-btn-stats,
+  html.tab-active-settings .mobile-dropdown-menu #mobile-nav-btn-settings {
+    background: linear-gradient(135deg, var(--clr-red) 0%, #ff9f43 100%) !important;
+    border-color: var(--clr-red) !important;
+    color: #fff !important;
+    box-shadow: var(--shadow-glow-red) !important;
+  }
+
+  .mobile-menu-item.btn-admin-panel {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(255, 159, 67, 0.15) 100%) !important;
+    border: 1px solid rgba(255, 71, 87, 0.45) !important;
+    color: #ff6b81 !important;
+  }
+
+  .mobile-menu-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    z-index: 2050;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  .mobile-menu-backdrop.open {
+    display: block;
+  }
+
+  /* Разметка контента лобби на мобильных */
+  .lobby-container .lobby-content-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+    width: 100% !important;
+  }
+
+  .lobby-container .lobby-main-area {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    gap: 0 !important;
+  }
+
+  .lobby-tab-section.active,
+  html.tab-active-lobby #tab-lobby,
+  html.tab-active-profile #tab-profile,
+  html.tab-active-shop #tab-shop,
+  html.tab-active-stats #tab-stats,
+  html.tab-active-settings #tab-settings {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    gap: 8px !important;
+  }
+
+  /* ФИКСИРОВАННАЯ ЧАСТЬ ЭКРАНА В ЛОББИ:
+     - Баннер «Правило дня» (flex-shrink: 0)
+     - Кнопка «Собрать свою банду» (flex-shrink: 0) */
+  #tab-lobby .funny-banner {
+    flex-shrink: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  #tab-lobby .lobby-create-section {
+    flex-shrink: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* СКРОЛЛИРУЕМАЯ ЧАСТЬ ЭКРАНА:
+     Начинается СТРОГО ПОСЛЕ кнопки «Собрать свою банду» (включает заголовок «Доступные комнаты», список комнат и весь нижележащий контент) */
+  #tab-lobby .lobby-rooms-section {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px !important;
+    margin-bottom: 0 !important;
+    gap: 8px !important;
+  }
+
+  /* Скролл для остальных вкладок */
+  #tab-profile,
+  #tab-shop,
+  #tab-stats,
+  #tab-settings {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 16px !important;
   }
 
   .action-list-wrap {
@@ -3526,6 +3766,12 @@ ul.room-list-mock {
 #user-balance,
 #btn-daily-bonus,
 #btn-logout,
+#mobile-menu-btn,
+.mobile-hamburger-btn,
+#mobile-dropdown-menu,
+.mobile-dropdown-menu,
+.mobile-menu-backdrop,
+#mobile-nav-btn-admin,
 #auth-register-content,
 #admin-panel-btn,
 #btn-admin-panel,
