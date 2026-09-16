@@ -9,34 +9,96 @@
 <body>
 
     <div id="app">
-        <!-- ЭКРАН 1: ЛОББИ -->
-        <div id="lobby-screen">
-		    <button id="leave-room-btn">Выйти из комнаты</button>
-            <h2>Комната ожидания</h2>
-            
-            <!-- Блок карточки выбора роли -->
-            <div id="role-card-block">
-                <button id="use-card-btn" onclick="openRoleMenu()">Использовать карточку роли (<span id="card-count">0</span>)</button>
-            </div>
+        <!-- ЭКРАН 1: ЛОББИ (ОЖИДАНИЕ) -->
+        <div id="lobby-screen" class="lobby-fullscreen-layout">
+            <!-- ВЕРХНЯЯ ШАПКА ЛОББИ -->
+            <header class="lobby-header-area">
+                <div class="lobby-header-left">
+                    <h1 class="dancing-title">
+                        <span class="char c-1">М</span>
+                        <span class="char c-2 has-hat">А</span>
+                        <span class="char c-3 has-tie">Ф</span>
+                        <span class="char c-4 has-glasses">И</span>
+                        <span class="char c-5">Я</span>
+                        <span class="title-spacer"></span>
+                        <span class="char c-6 has-cigar">К</span>
+                        <span class="char c-7">Л</span>
+                        <span class="char c-8">У</span>
+                        <span class="char c-9 has-rose">Б</span>
+                    </h1>
+                </div>
+                <div class="lobby-header-right">
+                    <button id="lobby-log-toggle-btn" class="mobile-log-btn" type="button">📜 Журнал</button>
+                    <button id="leave-room-btn">🚪 Выйти</button>
+                </div>
+            </header>
 
-            <div id="lobby-players-list"></div>
-            <button id="open-settings-btn">Настройки комнаты</button>
-            <button id="start-game-btn">Начать игру</button>
+            <!-- ДВУХКОЛОНОЧНАЯ РАБОЧАЯ ЗОНА -->
+            <div class="lobby-body-layout">
+                <!-- ЛЕВАЯ ПАНЕЛЬ: УЧАСТНИКИ В КОМНАТЕ -->
+                <aside class="lobby-panel-left">
+                    <div class="panel-section-title">
+                        <span>👥 Участники в комнате</span>
+                    </div>
+                    <div id="lobby-players-list" class="lobby-players-scroll"></div>
+                </aside>
+
+                <!-- ЦЕНТРАЛЬНОЕ ИГРОВОЕ ПОЛЕ -->
+                <main class="lobby-panel-center">
+                    <!-- Нейтральный баннер статуса -->
+                    <div class="lobby-status-banner">
+                        <span class="pulse-dot">●</span> Ожидание начала игры...
+                    </div>
+
+                    <!-- Пустая сетка игрового стола 4x3 -->
+                    <div class="lobby-empty-table-grid">
+                        <div class="table-slot-card"><div class="slot-num">1</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">2</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">3</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">4</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">5</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">6</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">7</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">8</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">9</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">10</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">11</div><div class="slot-status">Свободно</div></div>
+                        <div class="table-slot-card"><div class="slot-num">12</div><div class="slot-status">Свободно</div></div>
+                    </div>
+
+                    <!-- Нижняя панель управления (3 кнопки в ряд) -->
+                    <div class="lobby-bottom-controls">
+                        <div id="role-card-block">
+                            <button id="use-card-btn" onclick="openRoleMenu()">🃏 Использовать карточку роли (<span id="card-count">0</span>)</button>
+                        </div>
+                        <button id="open-settings-btn">⚙️ Настройки комнаты</button>
+                        <button id="start-game-btn">▶️ Начать игру</button>
+                    </div>
+                </main>
+            </div>
         </div>
 
         <!-- ЭКРАН 2: ИГРОВОЙ СТОЛ (ПОЛНОЭКРАННЫЙ ТРЕХЗОННЫЙ МАКЕТ) -->
-        <div id="game-screen" class="game-fullscreen-layout">
-            <!-- ВЕРХНЯЯ ШАПКА ИГРЫ -->
-            <header id="game-header" class="game-header-area">
-                <div class="game-header-left">
-                    <span id="day-counter">День 1</span>
+        <div id="game-screen" class="game-fullscreen-layout" style="display: none;">
+            <!-- ВЕРХНЯЯ ШАПКА ИГРЫ (ГЛОБАЛЬНАЯ ШАПКА) -->
+            <header id="game-header" class="lobby-header-area game-header-area">
+                <div class="lobby-header-left">
+                    <h1 class="dancing-title">
+                        <span class="char c-1">М</span>
+                        <span class="char c-2 has-hat">А</span>
+                        <span class="char c-3 has-tie">Ф</span>
+                        <span class="char c-4 has-glasses">И</span>
+                        <span class="char c-5">Я</span>
+                        <span class="title-spacer"></span>
+                        <span class="char c-6 has-cigar">К</span>
+                        <span class="char c-7">Л</span>
+                        <span class="char c-8">У</span>
+                        <span class="char c-9 has-rose">Б</span>
+                    </h1>
                 </div>
-                <div class="game-header-center">
-                    <span id="game-phase">Ожидание...</span>
-                </div>
-                <div class="game-header-right">
-                    <span id="phase-timer">00:00</span>
+                <div class="lobby-header-right">
                     <button id="mobile-log-toggle-btn" class="mobile-log-btn" type="button">📜 Журнал</button>
+                    <button id="game-leave-room-btn" class="leave-room-btn">🚪 Выйти</button>
                 </div>
             </header>
 
@@ -57,26 +119,33 @@
 
             <!-- ЦЕНТРАЛЬНАЯ ЗОНА: ИГРОВОЙ СТОЛ И УПРАВЛЕНИЕ МЫШЬЮ СНИЗУ -->
             <main class="game-panel-center">
-                <div id="players-grid" class="table-players-grid"></div>
+                <!-- Баннер активной фазы (рендерится JS, скрыт по умолчанию) -->
+                <div id="game-phase-banner" class="game-phase-banner-inline" style="display:none;"></div>
+
+                <!-- Постоянная сетка 4×3 -->
+                <div id="players-grid" class="table-players-grid grid-mode"></div>
+
+                <!-- Блок действий текущей фазы (речь, голосование, ночь) -->
+                <div id="game-action-panel" class="game-action-panel" style="display:none;"></div>
 
                 <div id="game-controls" class="game-bottom-controls">
                     <button id="end-game-btn">Завершить игру</button>
                     <button id="skip-phase-btn">Пропустить фазу <span id="skip-count"></span></button>
                 </div>
             </main>
-
-            <!-- ПРАВАЯ ПАНЕЛЬ: ЖУРНАЛ СОБЫТИЙ ИГРЫ -->
-            <aside class="game-panel-right" id="game-panel-log">
-                <div class="panel-section-title log-panel-header">
-                    <span>📜 Журнал событий</span>
-                    <button id="mobile-log-close-btn" class="mobile-close-log-btn" type="button">&times;</button>
-                </div>
-                <div id="game-log" class="game-log-inline"></div>
-            </aside>
-
-            <!-- Мобильная подложка для журнала -->
-            <div id="mobile-log-backdrop" class="mobile-backdrop"></div>
         </div>
+
+        <!-- ПРАВАЯ ПАНЕЛЬ: ЖУРНАЛ СОБЫТИЙ ИГРЫ (ОБЩАЯ ДЛЯ ВСЕХ ЭКРАНОВ) -->
+        <aside class="game-panel-right" id="game-panel-log">
+            <div class="panel-section-title log-panel-header">
+                <span>📜 Журнал событий</span>
+                <button id="mobile-log-close-btn" class="mobile-close-log-btn" type="button">&times;</button>
+            </div>
+            <div id="game-log" class="game-log-inline"></div>
+        </aside>
+
+        <!-- Подложка для журнала -->
+        <div id="mobile-log-backdrop" class="mobile-backdrop"></div>
     </div>
 
     <!-- Модальное окно роли -->

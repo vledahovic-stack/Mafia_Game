@@ -1,6 +1,13 @@
 const { ROLES, assignRoles, checkWinCondition } = require('./rolesConfig');
 const { XP_CONFIG } = require('./xpConfig');
 
+// Очищает gameState от таймеров Node.js перед socket.emit (предотвращает "circular structure" ошибку)
+function sanitizeGameState(gs) {
+    if (!gs) return gs;
+    const { timer, ...rest } = gs;
+    return rest;
+}
+
 // Логика фаз игры и общего игрового процесса
 
 function setPhase(room, phase, io) {
@@ -38,12 +45,12 @@ function setPhase(room, phase, io) {
         return;
     }
 
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 
     room.timer = setInterval(() => {
         if (room.gameState.timeLeft > 0) {
             room.gameState.timeLeft--;
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
         } else {
             clearInterval(room.timer);
             if (phase === 0) {
@@ -85,7 +92,7 @@ function startIndividualSpeechPhase(room, io) {
 function runSpeechTimer(room, io) {
     if (room.timer) clearInterval(room.timer);
 
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -98,7 +105,7 @@ function runSpeechTimer(room, io) {
         if (room.gameState.timeLeft <= 0) {
             nextSpeaker(room, io);
         } else {
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
         }
     }, 1000);
 }
@@ -160,7 +167,7 @@ function nominateCandidate(room, io, speakerUsername, candidateName) {
             room.gameState.gameLog = room.gameLog || [];
         }
 
-        io.to(room.id).emit('gameStateUpdate', room.gameState);
+        io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
     }
 }
 
@@ -222,7 +229,7 @@ function startVotingPhase(room, io, isTieBreaker = false) {
 
     if (room.timer) clearInterval(room.timer);
 
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -236,7 +243,7 @@ function startVotingPhase(room, io, isTieBreaker = false) {
             clearInterval(room.timer);
             tallyVotes(room, io);
         } else {
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
         }
     }, 1000);
 }
@@ -270,7 +277,7 @@ function castVote(room, io, voterUsername, candidateName) {
     }
 
     room.gameState.votes[voterUsername] = candidateName;
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 }
 
 function tallyVotes(room, io) {
@@ -358,7 +365,7 @@ function tallyVotes(room, io) {
     } else {
         if (room.gameState.isTieBreaker) {
             room.gameState.phaseText = 'Повторная ничья. Никто не выбывает';
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
             setTimeout(() => startNightPhase(room, io), 3000);
         } else {
             startDefenseSpeeches(room, io, leaders);
@@ -380,7 +387,7 @@ function startDefenseSpeeches(room, io, tiedCandidates) {
 
     if (room.timer) clearInterval(room.timer);
 
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -393,7 +400,7 @@ function startDefenseSpeeches(room, io, tiedCandidates) {
         if (room.gameState.timeLeft <= 0) {
             nextDefenseSpeaker(room, io);
         } else {
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
         }
     }, 1000);
 }
@@ -462,7 +469,7 @@ function startLastWordPhase(room, io, candidateName, isFromNight = false) {
 
     if (room.timer) clearInterval(room.timer);
 
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -480,7 +487,7 @@ function startLastWordPhase(room, io, candidateName, isFromNight = false) {
                 startNightPhase(room, io);
             }
         } else {
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
         }
     }, 1000);
 }
@@ -501,7 +508,7 @@ function startNightPhase(room, io) {
 
     if (room.timer) clearInterval(room.timer);
 
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -515,7 +522,7 @@ function startNightPhase(room, io) {
             clearInterval(room.timer);
             endNightPhase(room, io);
         } else {
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
         }
     }, 1000);
 }
@@ -536,7 +543,7 @@ function skipNightPhase(room, io, username) {
                 if (room.timer) clearInterval(room.timer);
                 endNightPhase(room, io);
             } else {
-                io.to(room.id).emit('gameStateUpdate', room.gameState);
+                io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
             }
         }
     }
@@ -872,7 +879,7 @@ function startMafiaHuddle(room, io) {
         room.timer = null;
     }
 
-    io.to(room.id).emit('gameStateUpdate', room.gameState);
+    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -888,7 +895,7 @@ function startMafiaHuddle(room, io) {
             // Договорка завершена — переходим к стандартному знакомству с ролью
             setPhase(room, 0, io);
         } else {
-            io.to(room.id).emit('gameStateUpdate', room.gameState);
+            io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
         }
     }, 1000);
 }

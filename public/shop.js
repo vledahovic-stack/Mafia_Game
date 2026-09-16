@@ -11,9 +11,29 @@ socket.on('shopData', (data) => {
     }
 });
 
-function buyItem(itemId, quantity) {
+async function buyItem(itemId, quantity) {
     const count = parseInt(quantity, 10) || 1;
-    socket.emit('buyItem', { itemId: itemId, count: count });
+    try {
+        const response = await fetch('/api/shop/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ itemId, quantity: count })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            const coinsElement = document.getElementById('coins-count');
+            if (coinsElement) {
+                coinsElement.textContent = data.newBalance ?? data.coins;
+            }
+            alert(data.message || 'Покупка успешно совершена!');
+        } else {
+            alert(data.error || data.message || 'Ошибка при покупке');
+        }
+    } catch (err) {
+        console.error('Ошибка покупки через API, пробуем через socket:', err);
+        socket.emit('buyItem', { itemId: itemId, count: count });
+    }
 }
 
 socket.on('buyResult', (response) => {

@@ -256,7 +256,7 @@ const ROLES = {
         canChangeNightVote: true,
         performAction: (room, speakerUsername, targetName) => {
             if (room.lastHealedTarget === targetName) {
-                return 'Нельзя лечить одного и того же игрока две ночи подряд.';
+                return { error: 'Нельзя лечить одного и того же игрока две ночи подряд.' };
             }
 
             if (!room.gameState.doctorHeals) {

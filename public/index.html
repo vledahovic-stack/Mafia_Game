@@ -52,6 +52,7 @@
                 <button id="nav-btn-shop" onclick="switchLobbyTab('shop')">🍕 Магазин</button>
                 <button id="nav-btn-stats" onclick="switchLobbyTab('stats')">🏆 Статистика</button>
                 <button id="nav-btn-settings" onclick="switchLobbyTab('settings')">⚙️ Настройки</button>
+                <button id="btn-admin-panel" class="btn-admin-panel" onclick="window.location.href='/admin.html'">🎩 Панель админа</button>
             </nav>
             <div class="lobby-sidebar-footer">
                 <span class="online-counter-label"><span class="pulse-dot">●</span> <span id="online-counter">В онлайне: 0</span></span>
@@ -151,7 +152,7 @@
                         <div class="shop-card-title">Бронзовый сундук</div>
                         <div class="shop-card-desc">Базовые награды для новичка</div>
                         <div class="shop-card-price">100 💰</div>
-                        <button class="btn-gold shop-card-btn" onclick="window.location.href='shop.html'">Купить</button>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'chest_bronze')">Купить</button>
                     </div>
 
                     <!-- 2: Серебряный сундук -->
@@ -160,7 +161,7 @@
                         <div class="shop-card-title">Серебряный сундук</div>
                         <div class="shop-card-desc">Улучшенные награды и бонусы</div>
                         <div class="shop-card-price">250 💰</div>
-                        <button class="btn-gold shop-card-btn" onclick="window.location.href='shop.html'">Купить</button>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'chest_silver')">Купить</button>
                     </div>
 
                     <!-- 3: Золотой сундук -->
@@ -169,7 +170,7 @@
                         <div class="shop-card-title">Золотой сундук</div>
                         <div class="shop-card-desc">Ценные призы и редкие карточки</div>
                         <div class="shop-card-price">500 💰</div>
-                        <button class="btn-gold shop-card-btn" onclick="window.location.href='shop.html'">Купить</button>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'chest_gold')">Купить</button>
                     </div>
 
                     <!-- 4: Карточка выбора роли -->
@@ -178,7 +179,7 @@
                         <div class="shop-card-title">Карточка выбора роли</div>
                         <div class="shop-card-desc">Гарантирует выбор желаемой роли</div>
                         <div class="shop-card-price">500 💰</div>
-                        <button class="btn-gold shop-card-btn" onclick="window.location.href='shop.html'">Купить</button>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'role_card')">Купить</button>
                     </div>
                 </div>
             </section>

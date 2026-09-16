@@ -57,6 +57,100 @@ async function claimDailyBonus() {
     }
 }
 
+// Всплывающие уведомления (Toast)
+function showToast(message, type = 'success') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast-message toast-${type}`;
+    const icon = type === 'success' ? '✅' : '❌';
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text">${message}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('toast-show');
+    }, 10);
+
+    setTimeout(() => {
+        toast.classList.remove('toast-show');
+        toast.classList.add('toast-hide');
+        setTimeout(() => {
+            if (toast.parentElement) toast.remove();
+        }, 350);
+    }, 3500);
+}
+
+// Бесшовная покупка товаров в десктопном магазине (вкладка #tab-shop)
+async function buyDesktopShopItem(event, itemId, quantity = 1) {
+    if (event) {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+    }
+
+    const username = localStorage.getItem('username');
+    if (!username) {
+        showToast('Пожалуйста, авторизуйтесь для покупки предметов!', 'error');
+        openModal('modal-auth');
+        return;
+    }
+
+    const btn = event?.currentTarget || (event?.target?.tagName === 'BUTTON' ? event.target : null);
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Покупка...';
+    }
+
+    try {
+        const response = await fetch('/api/shop/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ itemId, quantity })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // 1. Мгновенно обновить баланс пользователя в шапке ПК-версии
+            if (data.newBalance !== undefined) {
+                const balanceVal = document.getElementById('balance-value');
+                if (balanceVal) balanceVal.textContent = data.newBalance;
+                const tabProfileBalance = document.getElementById('tab-profile-balance');
+                if (tabProfileBalance) tabProfileBalance.textContent = data.newBalance;
+            } else {
+                loadBalance();
+            }
+
+            // 2. Если пользователь перейдёт в профиль, профиль уже будет с актуальными данными
+            if (typeof loadTabProfile === 'function') {
+                loadTabProfile();
+            }
+
+            // 3. Показать всплывающее уведомление (Toast)
+            showToast(data.message || `Предмет успешно куплен!`, 'success');
+        } else {
+            showToast(data.error || data.message || 'Ошибка при покупке предмета', 'error');
+        }
+    } catch (err) {
+        console.error('Ошибка покупки предмета:', err);
+        showToast('Ошибка связи с сервером при покупке', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText || 'Купить';
+        }
+    }
+}
+window.buyDesktopShopItem = buyDesktopShopItem;
+window.showToast = showToast;
+
 function switchAuthTab(tab) {
     const loginContent = document.getElementById('auth-login-content');
     const registerContent = document.getElementById('auth-register-content');
@@ -158,11 +252,12 @@ async function loadTabProfile() {
     }
 }
 
-function setLoggedInUser(username) {
+function setLoggedInUser(username, balance, isAdmin) {
     const authBtn = document.getElementById('btn-auth');
     if (authBtn) authBtn.style.display = 'none';
 
-    document.getElementById('btn-logout').style.display = 'inline-block';
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) logoutBtn.style.display = 'inline-block';
     
     const bonusBtn = document.getElementById('btn-daily-bonus');
     if (bonusBtn) {
@@ -170,20 +265,84 @@ function setLoggedInUser(username) {
         bonusBtn.onclick = claimDailyBonus;
     }
 
-    loadBalance();
+    const adminBtn = document.getElementById('btn-admin-panel');
+    if (adminBtn) {
+        const isUserAdmin = isAdmin === true || isAdmin === 1;
+        adminBtn.style.display = isUserAdmin ? 'flex' : 'none';
+    }
+
+    const balanceElem = document.getElementById('user-balance');
+    const balanceValueElem = document.getElementById('balance-value');
+    if (balance !== undefined && balance !== null) {
+        if (balanceValueElem) balanceValueElem.textContent = balance;
+        if (balanceElem) balanceElem.style.display = 'inline-block';
+    } else {
+        loadBalance();
+    }
 }
 
 function setLoggedOutUser() {
     const authBtn = document.getElementById('btn-auth');
     if (authBtn) authBtn.style.display = 'inline-block';
 
-    document.getElementById('btn-logout').style.display = 'none';
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) logoutBtn.style.display = 'none';
     
+    const adminBtn = document.getElementById('btn-admin-panel');
+    if (adminBtn) adminBtn.style.display = 'none';
+
     const balanceElem = document.getElementById('user-balance');
     if (balanceElem) balanceElem.style.display = 'none';
 
     const bonusBtn = document.getElementById('btn-daily-bonus');
     if (bonusBtn) bonusBtn.style.display = 'none';
+}
+
+function clearAuthData() {
+    localStorage.removeItem('username');
+    localStorage.removeItem('userId');
+}
+
+// Проверка сессии при загрузке страницы
+async function initAuth() {
+    // Сначала переводим UI в состояние гостя для предотвращения мелькания
+    setLoggedOutUser();
+
+    try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.authenticated && data.user) {
+                const user = data.user;
+                localStorage.setItem('username', user.username);
+                if (user.id) {
+                    localStorage.setItem('userId', user.id);
+                }
+                const isAdmin = user.isAdmin === true || user.role === 'admin' || user.is_admin === 1;
+                setLoggedInUser(user.username, user.balance, isAdmin);
+
+                if (user.welcome_chest_claimed === 0) {
+                    showWelcomeChestModal();
+                }
+
+                if (user.pending_chests_count > 0) {
+                    const lastShownCount = localStorage.getItem('last_seen_pending_chests');
+                    if (lastShownCount !== String(user.pending_chests_count)) {
+                        showHomeAdminChestModal(user.pending_chests_count);
+                    }
+                }
+                return;
+            }
+        }
+        
+        // Если сервер вернул 401 или сессия недействительна:
+        clearAuthData();
+        setLoggedOutUser();
+    } catch (e) {
+        console.error('Ошибка проверки сессии:', e);
+        clearAuthData();
+        setLoggedOutUser();
+    }
 }
 
 // Загрузка и динамическая генерация стилизованных комнат
@@ -258,36 +417,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         navigator.serviceWorker.register('/sw.js');
     }
 
-    try {
-        const res = await fetch('/api/user/profile', { credentials: 'include' });
-        if (res.ok) {
-            const user = await res.json();
-            if (user && user.username) {
-                localStorage.setItem('username', user.username);
-                if (user.id) {
-                    localStorage.setItem('userId', user.id);
-                }
-                setLoggedInUser(user.username);
-                if (user.welcome_chest_claimed === 0) {
-                    showWelcomeChestModal();
-                }
-
-                // Показываем окно только если есть сундуки И количество изменилось с прошлого раза (крестик не сбрасывал повторный показ)
-                if (user.pending_chests_count > 0) {
-                    const lastShownCount = localStorage.getItem('last_seen_pending_chests');
-                    if (lastShownCount !== String(user.pending_chests_count)) {
-                        showHomeAdminChestModal(user.pending_chests_count);
-                    }
-                }
-            } else {
-                checkLocalUser();
-            }
-        } else {
-            checkLocalUser();
-        }
-    } catch (e) {
-        checkLocalUser();
-    }
+    await initAuth();
 
     // Инициализация переключения вкладок навигации
     ['lobby', 'profile', 'shop', 'stats', 'settings'].forEach(tab => {
@@ -435,15 +565,6 @@ async function claimHomeAdminChest(pendingCount) {
     }
 }
 
-function checkLocalUser() {
-    const savedUsername = localStorage.getItem('username');
-    if (savedUsername) {
-        setLoggedInUser(savedUsername);
-    } else {
-        setLoggedOutUser();
-    }
-}
-
 // Обработка кнопки «Создать комнату»
 const createRoomBtn = document.querySelector('.btn-create-room') || document.querySelector('main section:first-child button');
 if (createRoomBtn) {
@@ -451,7 +572,7 @@ if (createRoomBtn) {
         const username = localStorage.getItem('username');
         if (!username) {
             alert('Сначала войдите в аккаунт');
-            openModal('modal-login');
+            openModal('modal-auth');
             return;
         }
 
@@ -487,9 +608,12 @@ document.getElementById('form-register').addEventListener('submit', async (e) =>
     if (result.success) {
         alert(`Регистрация прошла успешно! Ваш стартовый никнейм: ${result.username}`);
         localStorage.setItem('username', result.username);
-        setLoggedInUser(result.username);
+        if (result.userId) {
+            localStorage.setItem('userId', result.userId);
+        }
         closeModal('modal-auth');
         e.target.reset();
+        await initAuth();
     } else {
         alert(result.error || 'Ошибка при регистрации');
     }
@@ -516,13 +640,10 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         if (result.success) {
             localStorage.setItem('username', result.username);
             localStorage.setItem('userId', result.userId);
-            setLoggedInUser(result.username);
             closeModal('modal-auth');
             e.target.reset();
 
-            if (result.welcome_chest_claimed === 0) {
-                showWelcomeChestModal();
-            }
+            await initAuth();
         } else {
             alert(result.error || 'Ошибка при входе');
         }
@@ -545,7 +666,8 @@ async function claimWelcomeChest() {
     try {
         const res = await fetch('/api/user/claim-welcome-chest', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
         });
 
         const data = await res.json();
@@ -582,31 +704,18 @@ async function claimWelcomeChest() {
 
 document.getElementById('btn-claim-welcome-chest')?.addEventListener('click', claimWelcomeChest);
 
-async function checkWelcomeChestStatus() {
-    try {
-        const res = await fetch('/api/user/profile');
-        if (!res.ok) return;
-
-        const user = await res.json();
-
-        if (user && !user.welcome_chest_claimed) {
-            const modal = document.getElementById('welcome-chest-modal');
-            if (modal) modal.style.display = 'flex';
-        }
-    } catch (e) {
-        console.error('Ошибка проверки статуса сундука:', e);
-    }
-}
-
-checkWelcomeChestStatus();
-
 // Обработка кнопки выхода
 document.getElementById('btn-logout').addEventListener('click', async () => {
     try {
         await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-    } catch(e) {}
-    localStorage.removeItem('username');
+    } catch(e) {
+        console.error('Ошибка при выходе:', e);
+    }
+    clearAuthData();
     setLoggedOutUser();
+    if (typeof loadTabProfile === 'function') {
+        loadTabProfile();
+    }
 });
 
 // Блокировка масштабирования двухпальцевым жестом на Android

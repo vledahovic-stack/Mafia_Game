@@ -78,6 +78,24 @@ io.use((socket, next) => {
 
 const rooms = {};
 
+// Вспомогательная функция: удаляет таймеры Node.js из объекта комнаты перед JSON-сериализацией
+function sanitizeRoom(room) {
+    const { timer, ...rest } = room;
+    const sanitized = { ...rest };
+    // Если gameState содержит таймер — тоже чистим
+    if (sanitized.gameState) {
+        sanitized.gameState = sanitizeGameState(sanitized.gameState);
+    }
+    return sanitized;
+}
+
+// Вспомогательная функция: очищает gameState от таймеров перед socket.emit
+function sanitizeGameState(gs) {
+    if (!gs) return gs;
+    const { timer, ...rest } = gs;
+    return rest;
+}
+
 const ADMIN_USERS = ['111', 'Incognito'];
 
 // Вспомогательные функции работы с таблицей blacklists в БД
@@ -194,6 +212,82 @@ app.post('/api/login', (req, res) => {
     });
 });
 
+function requireAdmin(req, res, next) {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
+
+    const userId = req.session.userId;
+    const username = req.session.username;
+
+    if (req.session.isAdmin || (username && ADMIN_USERS.includes(username)) || (userId && ADMIN_USERS.includes(String(userId)))) {
+        return next();
+    }
+
+    db.get('SELECT id, username, is_admin FROM users WHERE id = ?', [userId], (err, user) => {
+        if (err || !user) {
+            return res.status(403).json({ error: 'Доступ запрещён' });
+        }
+        if (user.is_admin === 1 || ADMIN_USERS.includes(String(user.id)) || (user.username && ADMIN_USERS.includes(user.username))) {
+            req.session.isAdmin = true;
+            return next();
+        }
+        return res.status(403).json({ error: 'Доступ запрещён' });
+    });
+}
+
+app.get('/api/auth/me', (req, res) => {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ authenticated: false, error: 'Не авторизован' });
+    }
+
+    const userId = req.session.userId;
+    db.get(
+        'SELECT id, email, username, COALESCE(balance, 0) AS balance, COALESCE(xp, 0) AS xp, COALESCE(free_nickname_changes, 1) AS free_nickname_changes, COALESCE(welcome_chest_claimed, 0) AS welcome_chest_claimed, COALESCE(is_admin, 0) AS is_admin FROM users WHERE id = ?',
+        [userId],
+        (err, user) => {
+            if (err) {
+                return res.status(500).json({ authenticated: false, error: 'Ошибка сервера' });
+            }
+            if (!user) {
+                if (req.session) req.session.destroy();
+                return res.status(401).json({ authenticated: false, error: 'Пользователь не найден' });
+            }
+
+            db.get('SELECT COUNT(*) as count FROM pending_chests WHERE user_id = ? AND claimed = 0', [userId], (chestErr, chestRow) => {
+                const pending_chests_count = chestRow ? chestRow.count : 0;
+                const isAdmin = ADMIN_USERS.includes(String(user.id)) || ADMIN_USERS.includes(user.username) || user.is_admin === 1;
+
+                req.session.isAdmin = isAdmin;
+                req.session.username = user.username;
+
+                res.json({
+                    authenticated: true,
+                    user: {
+                        ...user,
+                        isAdmin,
+                        pending_chests_count
+                    }
+                });
+            });
+        }
+    );
+});
+
+app.post('/api/logout', (req, res) => {
+    if (req.session) {
+        req.session.destroy((err) => {
+            res.clearCookie('connect.sid');
+            if (err) {
+                return res.status(500).json({ success: false, error: 'Ошибка при выходе' });
+            }
+            res.json({ success: true });
+        });
+    } else {
+        res.json({ success: true });
+    }
+});
+
 app.post('/api/rooms/create', (req, res) => {
     const roomId = 'room_' + Date.now();
     rooms[roomId] = {
@@ -210,7 +304,7 @@ app.post('/api/rooms/create', (req, res) => {
 });
 
 app.get('/api/rooms', (req, res) => {
-    res.json(Object.values(rooms));
+    res.json(Object.values(rooms).map(sanitizeRoom));
 });
 
 app.get('/api/user/balance', (req, res) => {
@@ -281,6 +375,76 @@ app.post('/api/daily-bonus', (req, res) => {
     });
 });
 
+const SHOP_ITEMS = {
+    role_card: { name: 'Карточка выбора роли', price: 500 },
+    chest_bronze: { name: 'Бронзовый сундук', price: 100 },
+    chest_silver: { name: 'Серебряный сундук', price: 250 },
+    chest_gold: { name: 'Золотой сундук', price: 500 }
+};
+
+// Покупка предметов в магазине (десктоп API)
+app.post('/api/shop/buy', (req, res) => {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ success: false, error: 'Авторизуйтесь для совершения покупок' });
+    }
+
+    const userId = req.session.userId;
+    const { itemId } = req.body;
+    const count = Math.max(1, parseInt(req.body.quantity || req.body.count, 10) || 1);
+
+    const item = SHOP_ITEMS[itemId];
+    if (!item) {
+        return res.status(400).json({ success: false, error: 'Товар не найден' });
+    }
+
+    const totalPrice = item.price * count;
+
+    db.get('SELECT id, balance FROM users WHERE id = ?', [userId], (err, user) => {
+        if (err || !user) {
+            return res.status(500).json({ success: false, error: 'Ошибка получения профиля' });
+        }
+
+        if ((user.balance || 0) < totalPrice) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `Недостаточно монет! Требуется: ${totalPrice} 💰, на балансе: ${user.balance || 0} 💰` 
+            });
+        }
+
+        const newBalance = (user.balance || 0) - totalPrice;
+
+        db.run('UPDATE users SET balance = ? WHERE id = ?', [newBalance, userId], (updateErr) => {
+            if (updateErr) {
+                return res.status(500).json({ success: false, error: 'Ошибка списания средств' });
+            }
+
+            db.addInventoryItem(userId, itemId, count, (invErr) => {
+                if (invErr) {
+                    console.error('Ошибка добавления предмета в инвентарь:', invErr);
+                }
+
+                db.getUserInventory(userId, (invGetErr, rows) => {
+                    const inventory = {};
+                    if (rows && Array.isArray(rows)) {
+                        rows.forEach(r => {
+                            inventory[r.item_id] = r.quantity;
+                        });
+                    }
+
+                    res.json({
+                        success: true,
+                        message: `Предмет «${item.name}» успешно куплен!`,
+                        itemName: item.name,
+                        newBalance: newBalance,
+                        coins: newBalance,
+                        inventory: inventory
+                    });
+                });
+            });
+        });
+    });
+});
+
 // Получить полный инвентарь игрока
 app.get('/api/user/inventory', (req, res) => {
     if (!req.session.userId) {
@@ -312,9 +476,13 @@ app.get('/api/user/profile', (req, res) => {
         'SELECT id, email, username, COALESCE(balance, 0) AS balance, COALESCE(xp, 0) AS xp, COALESCE(free_nickname_changes, 1) AS free_nickname_changes, COALESCE(welcome_chest_claimed, 0) AS welcome_chest_claimed FROM users WHERE id = ?', 
         [userId], 
         (err, user) => {
-            if (err || !user) {
+            if (err) {
                 console.error('Ошибка получения пользователя из БД:', err);
                 return res.status(500).json({ error: 'Ошибка получения профиля' });
+            }
+            if (!user) {
+                if (req.session) req.session.destroy();
+                return res.status(401).json({ error: 'Пользователь не найден' });
             }
 
             db.all('SELECT item_id, quantity FROM inventory WHERE user_id = ?', [userId], (invErr, rows) => {
@@ -495,11 +663,7 @@ app.post('/api/user/open-chest', (req, res) => {
     });
 });
 
-app.post('/api/admin/add-balance', (req, res) => {
-    if (!req.session.username || !ADMIN_USERS.includes(req.session.username)) {
-        return res.status(403).json({ error: 'Доступ запрещён' });
-    }
-
+app.post('/api/admin/add-balance', requireAdmin, (req, res) => {
     const { userId, amount } = req.body;
     
     db.run(
@@ -615,7 +779,7 @@ io.on('connection', (socket) => {
             }
             if (room.gameState) {
                 room.gameState.players = room.players;
-                socket.emit('gameStateUpdate', room.gameState);
+                socket.emit('gameStateUpdate', sanitizeGameState(room.gameState));
             }
         }
 
@@ -725,7 +889,7 @@ io.on('connection', (socket) => {
                 
                 if (room.gameState) {
                     room.gameState.players = room.players;
-                    io.to(roomId).emit('gameStateUpdate', room.gameState);
+                    io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
                 }
             }
         }
@@ -748,7 +912,7 @@ io.on('connection', (socket) => {
                 io.to(roomId).emit('updatePlayers', room.players);
                 if (room.gameState) {
                     room.gameState.players = room.players;
-                    io.to(roomId).emit('gameStateUpdate', room.gameState);
+                    io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
                 }
             }
         }
@@ -799,7 +963,7 @@ io.on('connection', (socket) => {
             nominateCandidate(room, io, socket.username, candidateName);
             if (room.gameState) {
                 room.gameState.players = room.players;
-                io.to(roomId).emit('gameStateUpdate', room.gameState);
+                io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
             }
         }
     });
@@ -808,6 +972,20 @@ io.on('connection', (socket) => {
         const room = rooms[roomId];
         if (room) {
             castVote(room, io, socket.username, candidateName);
+        }
+    });
+
+    socket.on('submitVote', ({ roomId, candidateName, candidateId }) => {
+        const room = rooms[roomId];
+        if (room) {
+            let targetCandidate = candidateName;
+            if (!targetCandidate && candidateId) {
+                const targetPlayer = room.players.find(p => p.id === candidateId);
+                if (targetPlayer) targetCandidate = targetPlayer.username || targetPlayer.name;
+            }
+            if (targetCandidate) {
+                castVote(room, io, socket.username, targetCandidate);
+            }
         }
     });
 	
@@ -832,7 +1010,7 @@ io.on('connection', (socket) => {
 
         // Обновляем состояние у всех: donChecks теперь заполнен — UI перейдёт к этапу 2
         room.gameState.players = room.players;
-        io.to(roomId).emit('gameStateUpdate', room.gameState);
+        io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
     });
 
     socket.on('nightAction', ({ roomId, targetName }) => {
@@ -863,7 +1041,7 @@ io.on('connection', (socket) => {
 
         // Обновляем состояние всей комнате
         room.gameState.players = room.players;
-        io.to(roomId).emit('gameStateUpdate', room.gameState);
+        io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
     });
 
     socket.on('skipNightPhase', ({ roomId }) => {
@@ -888,7 +1066,7 @@ io.on('connection', (socket) => {
                     if (room.timer) clearInterval(room.timer);
                     startIndividualSpeechPhase(room, io);
                 } else {
-                    io.to(room.id).emit('gameStateUpdate', room.gameState);
+                    io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
                 }
             }
         }
@@ -924,7 +1102,7 @@ io.on('connection', (socket) => {
                 io.to(roomId).emit('updatePlayers', room.players);
                 if (room.gameState) {
                     room.gameState.players = room.players;
-                    io.to(roomId).emit('gameStateUpdate', room.gameState);
+                    io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
                 }
             }
         }
@@ -941,15 +1119,11 @@ let welcomeChestConfig = {
     }
 };
 
-app.get('/api/admin/welcome-chest', (req, res) => {
+app.get('/api/admin/welcome-chest', requireAdmin, (req, res) => {
     res.json(welcomeChestConfig);
 });
 
-app.post('/api/admin/welcome-chest', (req, res) => {
-    if (!req.session.userId) {
-        return res.status(401).json({ error: 'Не авторизован' });
-    }
-
+app.post('/api/admin/welcome-chest', requireAdmin, (req, res) => {
     const { coins, items } = req.body;
     welcomeChestConfig = { 
         coins: Number(coins) || 0, 
@@ -1019,11 +1193,7 @@ app.post('/api/user/claim-welcome-chest', async (req, res) => {
     }
 });
 
-app.post('/api/admin/send-custom-chest', async (req, res) => {
-    if (!req.session.username || !ADMIN_USERS.includes(req.session.username)) {
-        return res.status(403).json({ error: 'Доступ запрещён' });
-    }
-
+app.post('/api/admin/send-custom-chest', requireAdmin, async (req, res) => {
     const { userId, coins, items } = req.body;
     const coinsVal = Number(coins) || 0;
     const itemsJson = JSON.stringify(items || {});

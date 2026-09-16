@@ -64,13 +64,9 @@ const gameScreen = document.getElementById('game-screen');
 const lobbyPlayersList = document.getElementById('lobby-players-list');
 const startGameBtn = document.getElementById('start-game-btn');
 const openSettingsBtn = document.getElementById('open-settings-btn');
-const leaveRoomBtn = document.getElementById('leave-room-btn');
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 const settingsForm = document.getElementById('settings-form');
-const dayCounter = document.getElementById('day-counter');
-const gamePhase = document.getElementById('game-phase');
-const phaseTimer = document.getElementById('phase-timer');
 const playersGrid = document.getElementById('players-grid');
 const skipPhaseBtn = document.getElementById('skip-phase-btn');
 const skipCountSpan = document.getElementById('skip-count');
@@ -141,12 +137,12 @@ socket.on('kicked', () => {
     window.location.href = '/';
 });
 
-if (leaveRoomBtn) {
-    leaveRoomBtn.addEventListener('click', () => {
+document.querySelectorAll('#leave-room-btn, #game-leave-room-btn, .leave-room-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
         socket.emit('leaveRoom', { roomId });
         window.location.href = '/';
     });
-}
+});
 
 socket.on('settingsUpdated', (settings) => {
     currentSettings = settings;
@@ -168,6 +164,62 @@ socket.on('playSpeakerSignal', () => {
     }
 });
 
+function updateLobbyTableSlots(players) {
+    const grid = document.querySelector('.lobby-empty-table-grid');
+    if (!grid) return;
+
+    const slots = grid.querySelectorAll('.table-slot-card');
+    if (!slots || slots.length === 0) return;
+
+    const isHost = players.length > 0 && players[0].id === socket.id;
+
+    slots.forEach((slot, index) => {
+        const player = players[index];
+        const slotNum = index + 1;
+
+        const newSlot = slot.cloneNode(false);
+        slot.parentNode.replaceChild(newSlot, slot);
+
+        if (player) {
+            const pName = player.username || player.name || `Игрок ${slotNum}`;
+            const isMe = (player.id === socket.id);
+
+            newSlot.classList.add('occupied');
+            newSlot.style.borderColor = isMe ? 'rgba(29, 209, 161, 0.5)' : 'rgba(255, 209, 102, 0.4)';
+            newSlot.style.borderStyle = 'solid';
+            newSlot.style.background = isMe ? 'rgba(29, 209, 161, 0.08)' : 'rgba(255, 255, 255, 0.05)';
+            
+            newSlot.innerHTML = `
+                <div class="slot-num" style="color: ${isMe ? 'var(--clr-teal)' : 'var(--clr-gold)'}; opacity: 1; font-size: 0.95rem; font-weight: 800;">#${slotNum}</div>
+                <div style="font-size: 1.3rem; line-height: 1.2; margin: 2px 0;">👤</div>
+                <div class="slot-status" style="color: #fff; font-weight: 700; opacity: 1; font-size: 0.85rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${pName}">${pName}</div>
+            `;
+
+            if (!isMe) {
+                newSlot.style.cursor = 'pointer';
+                newSlot.addEventListener('click', () => {
+                    showPlayerContextMenu(player, socket, roomId, isHost, newSlot);
+                });
+                newSlot.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showPlayerContextMenu(player, socket, roomId, isHost, newSlot);
+                });
+            }
+        } else {
+            newSlot.classList.remove('occupied');
+            newSlot.style.borderColor = '';
+            newSlot.style.borderStyle = '';
+            newSlot.style.background = '';
+            newSlot.style.cursor = 'default';
+
+            newSlot.innerHTML = `
+                <div class="slot-num">${slotNum}</div>
+                <div class="slot-status">Свободно</div>
+            `;
+        }
+    });
+}
+
 socket.on('updatePlayers', (players) => {
     if (lobbyPlayersList) {
         lobbyPlayersList.innerHTML = '';
@@ -176,6 +228,8 @@ socket.on('updatePlayers', (players) => {
         players.forEach(player => {
             const item = document.createElement('div');
             item.className = 'lobby-player-card';
+            item.dataset.playerId = player.userId || player.id;
+            item.dataset.socketId = player.id;
             
             const nameSpan = document.createElement('span');
             nameSpan.textContent = player.username || player.name;
@@ -189,7 +243,12 @@ socket.on('updatePlayers', (players) => {
             if (player.id !== socket.id) {
                 item.addEventListener('click', (e) => {
                     if (e.target.closest('button')) return;
-                    showPlayerContextMenu(player, socket, roomId, isHost);
+                    showPlayerContextMenu(player, socket, roomId, isHost, item);
+                });
+                item.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    if (e.target.closest('button')) return;
+                    showPlayerContextMenu(player, socket, roomId, isHost, item);
                 });
             }
 
@@ -199,9 +258,12 @@ socket.on('updatePlayers', (players) => {
         if (startGameBtn) startGameBtn.style.display = isHost ? 'inline-block' : 'none';
         if (openSettingsBtn) openSettingsBtn.style.display = isHost ? 'inline-block' : 'none';
     }
+
+    // Синхронизация 12 слотов стола в лобби
+    updateLobbyTableSlots(players);
 });
 
-function showPlayerContextMenu(player, socket, roomId, isHost) {
+function showPlayerContextMenu(player, socket, roomId, isHost, targetElement = null) {
     let oldMenu = document.getElementById('player-context-menu');
     if (oldMenu) oldMenu.remove();
 
@@ -252,6 +314,46 @@ function showPlayerContextMenu(player, socket, roomId, isHost) {
     menu.appendChild(closeMenuBtn);
 
     document.body.appendChild(menu);
+
+    if (targetElement) {
+        const rect = targetElement.getBoundingClientRect();
+        const menuWidth = 220;
+        const menuHeight = menu.offsetHeight || 160;
+
+        let left = rect.right + 12;
+        let top = rect.top;
+
+        // Если не помещается справа от карточки
+        if (left + menuWidth > window.innerWidth - 10) {
+            if (rect.left + menuWidth <= window.innerWidth - 10) {
+                left = rect.left;
+                top = rect.bottom + 6;
+            } else {
+                left = Math.max(10, window.innerWidth - menuWidth - 10);
+            }
+        }
+
+        // Если выходит за нижний край окна
+        if (top + menuHeight > window.innerHeight - 10) {
+            top = Math.max(10, window.innerHeight - menuHeight - 10);
+        }
+
+        menu.style.top = `${top}px`;
+        menu.style.left = `${left}px`;
+        menu.style.transform = 'none';
+    }
+
+    const handleOutsideClick = (e) => {
+        if (!menu.contains(e.target) && (!targetElement || !targetElement.contains(e.target))) {
+            menu.remove();
+            document.removeEventListener('click', handleOutsideClick);
+            document.removeEventListener('contextmenu', handleOutsideClick);
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener('click', handleOutsideClick);
+        document.addEventListener('contextmenu', handleOutsideClick);
+    }, 50);
 }
 
 socket.on('gameStarted', () => {
@@ -338,6 +440,57 @@ function updateMicrophoneState(gameState, myPlayer) {
     AudioModule.toggleMicrophone(canSpeak);
 }
 
+function updateCentralPhaseBanner(state) {
+    const phaseBanner = document.getElementById('game-phase-banner');
+    if (!phaseBanner || !state) return;
+
+    const dayText = `День ${state.day || 1}`;
+    const phaseText = state.phaseText || String(state.phase);
+    const minutes = Math.floor((state.timeLeft || 0) / 60);
+    const seconds = (state.timeLeft || 0) % 60;
+    const timerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    let phaseIcon = '🌤️';
+    let phaseBg = 'rgba(255,209,102,0.08)';
+    let phaseBorder = 'rgba(255,209,102,0.3)';
+    let phaseColor = 'var(--clr-gold)';
+
+    if (state.phase === 5 || state.phase === 0.5) {
+        phaseIcon = '🌙';
+        phaseBg = 'rgba(84,160,255,0.08)';
+        phaseBorder = 'rgba(84,160,255,0.3)';
+        phaseColor = 'var(--clr-blue)';
+    } else if (state.phase === 3) {
+        phaseIcon = '⚖️';
+        phaseBg = 'rgba(255,83,112,0.08)';
+        phaseBorder = 'rgba(255,83,112,0.3)';
+        phaseColor = 'var(--clr-red)';
+    } else if (state.phase === 2 || state.phase === 2.5) {
+        phaseIcon = '🗣️';
+        phaseBg = 'rgba(29,209,161,0.08)';
+        phaseBorder = 'rgba(29,209,161,0.3)';
+        phaseColor = 'var(--clr-teal)';
+    } else if (state.phase === 4) {
+        phaseIcon = '💬';
+        phaseBg = 'rgba(255,159,67,0.08)';
+        phaseBorder = 'rgba(255,159,67,0.3)';
+        phaseColor = 'var(--clr-orange)';
+    }
+
+    phaseBanner.style.display = 'flex';
+    phaseBanner.style.background = phaseBg;
+    phaseBanner.style.borderColor = phaseBorder;
+
+    phaseBanner.innerHTML = `
+        <div class="phase-banner-day" style="color:${phaseColor};">
+            <span class="phase-banner-icon">${phaseIcon}</span>
+            <strong>${dayText}</strong>
+        </div>
+        <div class="phase-banner-title">${phaseText}</div>
+        <div class="phase-banner-timer">⏱ ${timerText}</div>
+    `;
+}
+
 socket.on('gameStateUpdate', (state) => {
     if (state.settings) {
         currentSettings = state.settings;
@@ -363,8 +516,9 @@ socket.on('gameStateUpdate', (state) => {
 
     switchToGameScreen();
 
-    // Сбрасываем флаг этапа я новой ночь если donChecks пустой
-    // (сервер сбрасывает donChecks при старте ночи в startNightPhase)
+    // ─── Обновляем центральный динамический баннер и таймер на каждом тике сокета ───
+    updateCentralPhaseBanner(state);
+
     if (state.phase === 5) {
         const myName = username;
         const checks = state.donChecks;
@@ -379,29 +533,19 @@ socket.on('gameStateUpdate', (state) => {
         lastSpeaker = state.currentSpeaker;
     }
 
-    if (dayCounter) dayCounter.textContent = `День ${state.day || 1}`;
-    if (gamePhase) gamePhase.textContent = state.phaseText || state.phase;
-    
-    if (phaseTimer) {
-        const minutes = Math.floor((state.timeLeft || 0) / 60);
-        const seconds = (state.timeLeft || 0) % 60;
-        phaseTimer.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-
     const stateCompareCopy = {
         phase: state.phase,
         currentSpeaker: state.currentSpeaker,
         speakerNominations: state.speakerNominations,
         votes: state.votes,
         nightVotes: state.nightVotes,
-        maniacTarget: state.maniacTarget, // <-- Добавлено
+        maniacTarget: state.maniacTarget,
         sheriffChecks: state.sheriffChecks,
         doctorTarget: state.doctorTarget,
         donChecks: state.donChecks,
         players: state.players ? state.players.map(p => ({ id: p.id, isAlive: p.isAlive, name: p.username || p.name })) : []
     };
 
-	
     const currentStateJSON = JSON.stringify(stateCompareCopy);
 
     if (currentStateJSON !== lastStateJSON) {
@@ -469,147 +613,274 @@ function renderGridContent(state) {
     }
 
     if (playersGrid && state.players) {
-        playersGrid.innerHTML = '';
-
         const me = state.players.find(p => (p.username === username || p.name === username || p.id === socket.id));
         const myName = me ? (me.username || me.name) : username;
         const isMyTurn = state.currentSpeaker === myName || state.currentSpeaker === username;
+        const isHost = state.players.length > 0 && state.players[0].id === socket.id;
 
-        if (state.phase === 2 || state.phase === 2.5 || state.phase === 4) {
-            if (skipNightBtn) skipNightBtn.style.display = 'none';
-            playersGrid.className = 'single-speaker-mode';
+        const isSpeechPhase = (state.phase === 2 || state.phase === 2.5 || state.phase === 4);
+        const isVotingPhase = (state.phase === 3);
+        const isNightPhase = (state.phase === 5);
+        const actionPanel = document.getElementById('game-action-panel');
+
+        // ─── Полная очистка состояния обоих экранов перед рендером новой фазы ───
+        playersGrid.innerHTML = '';
+        playersGrid.classList.add('hidden');
+        playersGrid.style.display = 'none';
+
+        if (actionPanel) {
+            actionPanel.innerHTML = '';
+            actionPanel.classList.add('hidden');
+            actionPanel.style.display = 'none';
+        }
+        if (finishSpeechBtn) finishSpeechBtn.style.display = 'none';
+        if (skipNightBtn) skipNightBtn.style.display = 'none';
+
+        if (isSpeechPhase) {
+            // ─── ФАЗА 2: ИНДИВИДУАЛЬНАЯ РЕЧЬ (Сетка 4x3 полностью скрыта, отображается ТОЛЬКО карточка спикера и кандидаты) ───
+            playersGrid.classList.add('hidden');
+            playersGrid.style.display = 'none';
 
             const speakerName = state.currentSpeaker;
-            const speaker = state.players.find(p => (p.username === speakerName || p.name === speakerName));
-    
-            if (speaker) {
-                const card = document.createElement('div');
-                card.className = 'player-card speaker-card';
+            const speakerIndex = state.players.findIndex(p => (p.username === speakerName || p.name === speakerName)) + 1 || 1;
+            const speakerPlayer = state.players.find(p => (p.username === speakerName || p.name === speakerName));
+            const isSpeakerMe = (speakerName === myName || speakerName === username);
 
-                card.innerHTML = `
-                    <div class="player-name">${speaker.username || speaker.name}</div>
-                    <div class="speaker-label">${state.phase === 4 ? 'Последнее слово...' : 'Говорит...'}</div>
+            if (actionPanel && speakerName) {
+                actionPanel.classList.remove('hidden');
+                actionPanel.style.display = 'flex';
+
+                // Увеличенная карточка текущего спикера
+                const speakerCard = document.createElement('div');
+                speakerCard.className = 'speaker-card-prominent';
+                speakerCard.innerHTML = `
+                    <div class="speaker-avatar-icon">${state.phase === 4 ? '💬' : '🗣️'}</div>
+                    <div class="speaker-name-display">
+                        <span style="color:var(--clr-gold);font-size:1.1rem;font-weight:900;">#${speakerIndex}</span>
+                        <span>${speakerName}${isSpeakerMe ? ' (Вы)' : ''}</span>
+                    </div>
+                    <div class="speaker-status-tag">${state.phase === 4 ? 'Последнее слово...' : 'Индивидуальная речь...'}</div>
                 `;
-                playersGrid.appendChild(card);
+                if (speakerPlayer) {
+                    const audioBtn = createAudioButton(speakerPlayer, socket.id);
+                    speakerCard.appendChild(audioBtn);
+                }
+                actionPanel.appendChild(speakerCard);
 
+                // Информационный блок с вынесенным кандидатом
                 const currentNomination = state.speakerNominations ? state.speakerNominations[speakerName] : null;
-
                 if (currentNomination) {
                     const nominationBadge = document.createElement('div');
-                    nominationBadge.className = 'nomination-badge';
-                    nominationBadge.textContent = `Выставляет: ${currentNomination}`;
-                    playersGrid.appendChild(nominationBadge);
+                    nominationBadge.className = 'nomination-status-badge';
+                    nominationBadge.innerHTML = `⚖️ Выставлен на голосование: <strong>${currentNomination}</strong>`;
+                    actionPanel.appendChild(nominationBadge);
+                } else if (!isMyTurn) {
+                    const nominationBadge = document.createElement('div');
+                    nominationBadge.className = 'nomination-status-badge empty';
+                    nominationBadge.textContent = 'Кандидатура пока не выставлена';
+                    actionPanel.appendChild(nominationBadge);
                 }
-            }
 
-            const isFirstDay = state.day === 1;
-            const allowFirstDayVoting = currentSettings?.rules?.firstDayVoting ?? state.allowFirstDayVoting ?? false;
-            const canNominate = !isFirstDay || allowFirstDayVoting;
+                // Для текущего спикера: выбор кандидатов
+                const isFirstDay = state.day === 1;
+                const allowFirstDayVoting = currentSettings?.rules?.firstDayVoting ?? state.allowFirstDayVoting ?? false;
+                const canNominate = !isFirstDay || allowFirstDayVoting;
 
-            if (state.phase === 2 && isMyTurn && canNominate) {
-                const nominateBox = document.createElement('div');
-                nominateBox.className = 'nominate-box';
-                nominateBox.innerHTML = '<h4>Выставить кандидатуру (макс. 1):</h4>';
-                
-                const aliveOtherPlayers = state.players.filter(p => p.isAlive !== false && (p.username || p.name) !== myName);
-                
-                const renderNominateButtons = () => {
-                    const oldBtns = nominateBox.querySelectorAll('.nominate-btn');
-                    oldBtns.forEach(b => b.remove());
+                if (state.phase === 2 && isMyTurn && canNominate) {
+                    const aliveOtherPlayers = state.players.filter(p => p.isAlive !== false && (p.username || p.name) !== myName);
+                    const hasNomination = Boolean(currentNomination || myNominatedCandidate);
 
-                    aliveOtherPlayers.forEach(p => {
-                        const pName = p.username || p.name;
-                        const isMyChoice = myNominatedCandidate === pName;
-                        const btn = document.createElement('button');
-                        btn.className = `nominate-btn ${isMyChoice ? 'active' : ''}`;
-                        btn.textContent = pName + (isMyChoice ? ' (Выставлен вами)' : '');
-                        btn.onclick = () => {
-                            myNominatedCandidate = pName;
-                            socket.emit('nominateCandidate', { roomId, candidateName: pName });
-                            renderNominateButtons();
-                        };
-                        nominateBox.appendChild(btn);
-                    });
-                };
+                    // ─── Unified action-list-wrap: Номинация ───
+                    const nominateWrap = document.createElement('div');
+                    nominateWrap.className = 'action-list-wrap';
 
-                renderNominateButtons();
-                playersGrid.appendChild(nominateBox);
+                    // Шапка-баннер
+                    const nominateHeader = document.createElement('div');
+                    nominateHeader.className = 'action-list-header';
+                    nominateHeader.innerHTML = `
+                        <div class="action-list-header-left">
+                            <span class="action-list-header-icon">📋</span>
+                            <span>Выставить кандидатуру</span>
+                        </div>
+                        <div class="action-list-header-right">
+                            ${hasNomination ? `✅ Выбор сделан` : `Макс. 1 кандидат`}
+                        </div>
+                    `;
+                    nominateWrap.appendChild(nominateHeader);
+
+                    // Список кандидатов
+                    const nominateList = document.createElement('div');
+                    nominateList.className = 'action-list';
+
+                    if (aliveOtherPlayers.length === 0) {
+                        const empty = document.createElement('div');
+                        empty.className = 'action-list-empty';
+                        empty.textContent = 'Нет доступных игроков.';
+                        nominateList.appendChild(empty);
+                    } else {
+                        aliveOtherPlayers.forEach(p => {
+                            const pName = p.username || p.name;
+                            const pIndex = state.players.findIndex(pl => (pl.username === pName || pl.name === pName)) + 1 || '?';
+                            const isMyChoice = (currentNomination ? currentNomination === pName : myNominatedCandidate === pName);
+
+                            const row = document.createElement('div');
+                            row.className = `action-list-row ${isMyChoice ? 'row-selected' : ''}`;
+                            row.innerHTML = `
+                                <div class="action-row-left">
+                                    <span class="action-row-num">#${pIndex}</span>
+                                    <span class="action-row-avatar">👤</span>
+                                    <div class="action-row-name-block">
+                                        <span class="action-row-name" title="${pName}">${pName}</span>
+                                    </div>
+                                </div>
+                                <div class="action-row-right">
+                                    ${isMyChoice
+                                        ? `<div class="action-confirmed-badge">✅ Выдвинут</div>`
+                                        : `<button type="button" class="action-btn">${hasNomination ? 'ИЗМЕНИТЬ' : 'ВЫДВИНУТЬ'}</button>`
+                                    }
+                                </div>
+                            `;
+
+                            if (!isMyChoice) {
+                                const btn = row.querySelector('.action-btn');
+                                if (btn) {
+                                    btn.addEventListener('click', (e) => {
+                                        e.stopPropagation();
+                                        myNominatedCandidate = pName;
+                                        socket.emit('nominateCandidate', { roomId, candidateName: pName });
+                                    });
+                                }
+                            }
+                            nominateList.appendChild(row);
+                        });
+                    }
+
+                    nominateWrap.appendChild(nominateList);
+                    actionPanel.appendChild(nominateWrap);
+                }
             }
 
             if (finishSpeechBtn) {
                 finishSpeechBtn.style.display = isMyTurn ? 'inline-block' : 'none';
             }
-        } 
-        else if (state.phase === 3) {
-            if (finishSpeechBtn) finishSpeechBtn.style.display = 'none';
-            if (skipNightBtn) skipNightBtn.style.display = 'none';
-            playersGrid.className = 'voting-mode';
+        } else if (isVotingPhase) {
+            // ─── ФАЗА 3: ГОЛОСОВАНИЕ (Сетка 4x3 скрыта, вертикальный список кандидатов по центру) ───
+            playersGrid.classList.add('hidden');
+            playersGrid.style.display = 'none';
 
-            const myVote = state.votes ? (state.votes[myName] || state.votes[username]) : null;
+            if (actionPanel) {
+                actionPanel.classList.remove('hidden');
+                actionPanel.style.display = 'flex';
 
-            const alivePlayers = state.players.filter(p => p.isAlive !== false);
-            const isTieBreaker = Boolean(state.isTieBreaker);
-            const candidates = state.votingCandidates || [];
-            const isDuelRevote = isTieBreaker && candidates.length === 2;
+                const myVote = state.votes ? (state.votes[myName] || state.votes[username]) : null;
+                const hasVoted = Boolean(myVote);
+                const alivePlayers = state.players.filter(p => p.isAlive !== false);
+                const isTieBreaker = Boolean(state.isTieBreaker);
+                const candidates = state.votingCandidates || [];
+                const isDuelRevote = isTieBreaker && candidates.length === 2;
+                const isCandidateInDuel = isDuelRevote && (
+                    candidates.includes(myName) || candidates.includes(username) ||
+                    (me && (candidates.includes(me.username) || candidates.includes(me.name)))
+                );
+                const isAlive = me && me.isAlive !== false;
+                const canVote = isAlive && !isCandidateInDuel;
+                const eligibleVoters = isDuelRevote
+                    ? alivePlayers.filter(p => { const pn = p.username || p.name; return !candidates.includes(pn) && !candidates.includes(p.username) && !candidates.includes(p.name); })
+                    : alivePlayers;
+                const totalVoters = eligibleVoters.length;
+                const votedCount = Object.keys(state.votes || {}).filter(k => !(isDuelRevote && candidates.includes(k))).length;
 
-            // Проверяем, является ли текущий игрок кандидатом дуэли на переголосовании
-            const isCandidateInDuel = isDuelRevote && (
-                candidates.includes(myName) ||
-                candidates.includes(username) ||
-                (me && (candidates.includes(me.username) || candidates.includes(me.name)))
-            );
+                // ─── Unified action-list-wrap: Голосование ───
+                const votingWrap = document.createElement('div');
+                votingWrap.className = 'action-list-wrap';
 
-            const isAlive = me && me.isAlive !== false;
-            const canVote = isAlive && !isCandidateInDuel;
-
-            // При дуэли переголосования кандидаты не входят в число голосующих
-            const eligibleVoters = isDuelRevote
-                ? alivePlayers.filter(p => {
-                    const pName = p.username || p.name;
-                    return !candidates.includes(pName) && !candidates.includes(p.username) && !candidates.includes(p.name);
-                })
-                : alivePlayers;
-
-            const totalVoters = eligibleVoters.length;
-
-            const votedCount = Object.keys(state.votes || {}).filter(voterKey => {
-                if (isDuelRevote && candidates.includes(voterKey)) return false;
-                return true;
-            }).length;
-
-            const votesCounterBox = document.createElement('div');
-            votesCounterBox.className = 'votes-counter';
-            votesCounterBox.textContent = `Проголосовало: ${votedCount} из ${totalVoters}`;
-            playersGrid.appendChild(votesCounterBox);
-
-            if (isCandidateInDuel) {
-                const duelNotice = document.createElement('div');
-                duelNotice.className = 'voting-warning-banner';
-                duelNotice.innerHTML = '⚖️ <strong>Дуэль на переголосовании:</strong> Вы находитесь на голосовании и лишены права голоса в этом раунде.';
-                playersGrid.appendChild(duelNotice);
-            }
-
-            candidates.forEach(candName => {
-                const candCard = document.createElement('div');
-                candCard.className = `voting-card ${myVote === candName ? 'selected' : ''} ${!canVote ? 'disabled' : ''}`;
-                candCard.innerHTML = `
-                    <div class="cand-name">${candName}</div>
+                // Шапка-баннер
+                const votingHeader = document.createElement('div');
+                votingHeader.className = 'action-list-header';
+                const headerIcon = isDuelRevote ? '⚖️' : '🗳️';
+                const headerTitle = isDuelRevote ? 'Переголосование (дуэль)' : 'Голосование';
+                votingHeader.innerHTML = `
+                    <div class="action-list-header-left">
+                        <span class="action-list-header-icon">${headerIcon}</span>
+                        <span>${headerTitle}</span>
+                    </div>
+                    <div class="action-list-header-right">
+                        📊 Проголосовало: <strong>${votedCount} из ${totalVoters}</strong>
+                    </div>
                 `;
+                votingWrap.appendChild(votingHeader);
 
-                if (canVote) {
-                    candCard.onclick = () => {
-                        socket.emit('castVote', { roomId, candidateName: candName });
-                    };
+                // Предупреждение для участника дуэли
+                if (isCandidateInDuel) {
+                    const warn = document.createElement('div');
+                    warn.className = 'action-list-warning';
+                    warn.innerHTML = '⚖️ <strong>Вы участник дуэли</strong> и лишены права голоса в этом раунде.';
+                    votingWrap.appendChild(warn);
                 }
 
-                playersGrid.appendChild(candCard);
-            });
-        } 
-        else if (state.phase === 5) {
-            if (finishSpeechBtn) finishSpeechBtn.style.display = 'none';
-            
+                // Список кандидатов
+                const votingList = document.createElement('div');
+                votingList.className = 'action-list';
+
+                if (candidates.length === 0) {
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'action-list-empty';
+                    emptyEl.textContent = 'Кандидаты на голосование отсутствуют.';
+                    votingList.appendChild(emptyEl);
+                } else {
+                    candidates.forEach(candName => {
+                        const candPlayer = state.players.find(p => (p.username === candName || p.name === candName));
+                        const candIndex = state.players.findIndex(p => (p.username === candName || p.name === candName)) + 1 || '?';
+                        const isCandMe = (candName === myName || candName === username);
+                        const hasVotedForThis = (myVote === candName);
+                        const isDisabled = !canVote;
+
+                        const row = document.createElement('div');
+                        row.className = `action-list-row ${hasVotedForThis ? 'row-selected' : ''} ${isDisabled ? 'row-disabled' : ''}`;
+
+                        row.innerHTML = `
+                            <div class="action-row-left">
+                                <span class="action-row-num">#${candIndex}</span>
+                                <span class="action-row-avatar">👤</span>
+                                <div class="action-row-name-block">
+                                    <span class="action-row-name" title="${candName}">${candName}${isCandMe ? ' (Вы)' : ''}</span>
+                                </div>
+                            </div>
+                            <div class="action-row-right">
+                                ${hasVotedForThis
+                                    ? `<div class="action-confirmed-badge">✅ Ваш голос</div>`
+                                    : `<button type="button" class="action-btn" ${isDisabled ? 'disabled' : ''}>${hasVoted ? 'ИЗМЕНИТЬ ГОЛОС' : 'ГОЛОСОВАТЬ'}</button>`
+                                }
+                            </div>
+                        `;
+
+                        if (!hasVotedForThis && canVote) {
+                            const voteBtn = row.querySelector('.action-btn');
+                            if (voteBtn) {
+                                voteBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    const candId = candPlayer ? candPlayer.id : null;
+                                    socket.emit('submitVote', { roomId, candidateId: candId, candidateName: candName });
+                                    socket.emit('castVote', { roomId, candidateName: candName, candidateId: candId });
+                                });
+                            }
+                        }
+
+                        votingList.appendChild(row);
+                    });
+                }
+
+                votingWrap.appendChild(votingList);
+                actionPanel.appendChild(votingWrap);
+            }
+        } else if (isNightPhase) {
+            // ─── ФАЗА 5: НОЧЬ (Сетка 4×3 полностью скрыта, вертикальный список целей по центру) ───
+            playersGrid.classList.add('hidden');
+            playersGrid.style.display = 'none';
+
             const isAlive = me && me.isAlive !== false;
             const isActiveRole = isAlive && myRole !== 'Мирный житель';
+            const myRoleLower = (myRole || '').toLowerCase();
 
             if (skipNightBtn) {
                 skipNightBtn.style.display = isActiveRole ? 'inline-block' : 'none';
@@ -622,214 +893,262 @@ function renderGridContent(state) {
                 }
             }
 
-            if (!isActiveRole) {
-                playersGrid.className = 'night-mode-civilian';
-                playersGrid.innerHTML = `
-                    <div class="night-banner">
-                        <div class="moon-icon">🌙</div>
-                        <h3>Город засыпает...</h3>
-                        <p>Мирные жители спят. Ожидайте завершения действий активных ролей.</p>
-                    </div>
-                `;
-            } else {
-                playersGrid.className = 'voting-mode';
-                
-                let hintText = '';
-                const myRoleLower = (myRole || '').toLowerCase();
+            if (actionPanel) {
+                actionPanel.classList.remove('hidden');
+                actionPanel.style.display = 'flex';
 
-                // Проверяем, сделал ли уже Дон проверку в эту ночь
-                // (используем модульную переменную donAlreadyChecked, обновляемую через actionResult)
-                if (myRoleLower.includes('дон')) {
-                    const checks = state.donChecks;
-                    if (checks && (checks[myName] || checks[username])) {
-                        donAlreadyChecked = true;
+                if (!isActiveRole) {
+                    // Пассивный игрок — баннер ожидания
+                    const nightContainer = document.createElement('div');
+                    nightContainer.className = 'night-phase-container';
+
+                    const sleepBanner = document.createElement('div');
+                    sleepBanner.className = 'night-sleep-banner';
+                    sleepBanner.innerHTML = '<span class="night-sleep-icon">🌙</span><span>Город засыпает... Ожидайте завершения ночных действий.</span>';
+                    nightContainer.appendChild(sleepBanner);
+                    actionPanel.appendChild(nightContainer);
+                } else {
+                    // Активная роль — вертикальный список целей
+                    if (myRoleLower.includes('дон')) {
+                        const checks = state.donChecks;
+                        if (checks && (checks[myName] || checks[username])) donAlreadyChecked = true;
                     }
-                }
 
-                if (myRoleLower.includes('шериф')) {
-                    hintText = 'Чей багажник проверить?';
-                } else if (myRoleLower.includes('дон')) {
-                    if (!donAlreadyChecked) {
-                        hintText = '🎩 Шаг 1: Кого проверить на шерифство? (Первый клик — проверка)';
-                    } else {
-                        hintText = '🔫 Шаг 2: Выберите цель для ночного выстрела мафии:';
-                    }
-                } else if (myRoleLower.includes('мафия')) {
-                    hintText = 'Кого угостить несвежим пончиком?';
-                } else if (myRoleLower.includes('доктор')) {
-                    hintText = 'Кого отправить на клизму?';
-                } else if (myRoleLower.includes('маньяк') || myRoleLower.includes('maniac')) {
-                    hintText = 'Кого выбрать в качестве ночной жертвы?';
-                }
-
-                if (hintText) {
-                    const hintBox = document.createElement('div');
-                    hintBox.className = 'night-hint';
-                    hintBox.textContent = hintText;
-                    playersGrid.appendChild(hintBox);
-                }
-
-                let selectablePlayers = state.players.filter(player => player.isAlive !== false);
-                if (myRoleLower.includes('шериф')) {
-                    selectablePlayers = selectablePlayers.filter(player => (player.username || player.name) !== myName);
-                }
-
-                selectablePlayers.forEach(player => {
-                    const pName = player.username || player.name;
-                    const card = document.createElement('div');
-
-                    let isTargeted = false;
-                    let targetStatusText = 'Нажмите для выбора';
-
-                    // Определяем режим игры для скрытия/показа чужих выстрелов
-                    const gameMode = currentSettings?.rules?.gameMode ||
-                                     currentSettings?.gameMode || 'city';
-                    const isSportMode = gameMode === 'sport';
+                    let roleIcon = '🌙';
+                    let hintText = '';
 
                     if (myRoleLower.includes('шериф')) {
-                        if (state.sheriffChecks && (state.sheriffChecks[myName]?.target === pName || state.sheriffChecks[username]?.target === pName)) {
-                            isTargeted = true;
-                            targetStatusText = 'Цель проверена ✓';
-                        }
+                        roleIcon = '🔍'; hintText = 'Чей багажник проверить?';
                     } else if (myRoleLower.includes('дон')) {
-                        const isMafiaTarget = state.nightVotes &&
-                            (state.nightVotes[myName] === pName || state.nightVotes[username] === pName);
-                        const isDonChecked = state.donChecks &&
-                            (state.donChecks[myName]?.target === pName || state.donChecks[username]?.target === pName);
-
-                        if (!donAlreadyChecked) {
-                            // Этап 1: показываем, кого проверили раньше (в текущую ночь не должно быть)
-                            if (isDonChecked) {
-                                isTargeted = true;
-                                targetStatusText = 'Проверен ✓';
-                            }
-                        } else {
-                            // Этап 2: выстрел
-                            if (isDonChecked) {
-                                targetStatusText = 'Проверен (ранее) 🔍';
-                            }
-                            if (isMafiaTarget) {
-                                isTargeted = true;
-                                targetStatusText = 'Цель выстрела 🔫';
-                            }
-                        }
+                        roleIcon = '🎩';
+                        hintText = !donAlreadyChecked ? 'Шаг 1: Кого проверить на шерифство?' : 'Шаг 2: Выберите цель для выстрела:';
                     } else if (myRoleLower.includes('мафия')) {
-                        const myVote = state.nightVotes &&
-                            (state.nightVotes[myName] === pName || state.nightVotes[username] === pName);
-                        if (myVote) {
-                            isTargeted = true;
-                            targetStatusText = 'Цель выбрана ✓';
-                        }
-                        // В городском режиме показываем общую цель мафии
-                        if (!isSportMode && !myVote && state.nightVotes) {
-                            const allVotes = Object.values(state.nightVotes);
-                            if (allVotes.length > 0 && allVotes.every(v => v === pName)) {
-                                targetStatusText = 'Согласие 🎯';
-                            }
-                        }
+                        roleIcon = '🔫'; hintText = 'Кого угостить несвежим пончиком?';
                     } else if (myRoleLower.includes('доктор')) {
-                        if (state.doctorTarget === pName || (state.doctorHeals && (state.doctorHeals[myName] === pName || state.doctorHeals[username] === pName))) {
-                            isTargeted = true;
-                            targetStatusText = 'Цель выбрана ✓';
-                        }
+                        roleIcon = '💊'; hintText = 'Кого исцелить этой ночью?';
                     } else if (myRoleLower.includes('маньяк') || myRoleLower.includes('maniac')) {
-                        if (state.maniacTarget === pName) {
-                            isTargeted = true;
-                            targetStatusText = 'Цель выбрана ✓';
-                        }
+                        roleIcon = '🔪'; hintText = 'Выберите цель для ночной атаки:';
                     }
 
-                    card.className = `voting-card ${isTargeted ? 'selected' : ''}`;
+                    const gameMode = currentSettings?.rules?.gameMode || currentSettings?.gameMode || 'city';
+                    const isSportMode = gameMode === 'sport';
+
+                    let selectablePlayers = state.players.filter(p => p.isAlive !== false);
+                    if (myRoleLower.includes('шериф')) {
+                        selectablePlayers = selectablePlayers.filter(p => (p.username || p.name) !== myName);
+                    }
+
+                    // ─── Unified action-list-wrap: Ночное действие ───
+                    const nightWrap = document.createElement('div');
+                    nightWrap.className = 'action-list-wrap';
+
+                    // Шапка-баннер
+                    const nightHeader = document.createElement('div');
+                    nightHeader.className = 'action-list-header';
+                    nightHeader.innerHTML = `
+                        <div class="action-list-header-left">
+                            <span class="action-list-header-icon">${roleIcon}</span>
+                            <span>Ночное действие</span>
+                        </div>
+                        <div class="action-list-header-right">${hintText}</div>
+                    `;
+                    nightWrap.appendChild(nightHeader);
+
+                    // Список целей
+                    const nightList = document.createElement('div');
+                    nightList.className = 'action-list';
+
+                    selectablePlayers.forEach(player => {
+                        const pName = player.username || player.name;
+                        const pIndex = state.players.findIndex(p => (p.username === pName || p.name === pName)) + 1 || '?';
+                        const isCandMe = (pName === myName || pName === username);
+
+                        let isSelected = false;
+                        let selectedLabel = '';
+                        let sideInfo = '';
+
+                        if (myRoleLower.includes('шериф')) {
+                            if (state.sheriffChecks && (state.sheriffChecks[myName]?.target === pName || state.sheriffChecks[username]?.target === pName)) {
+                                isSelected = true; selectedLabel = '🔍 Проверен';
+                            }
+                        } else if (myRoleLower.includes('дон')) {
+                            const isMafiaTarget = state.nightVotes && (state.nightVotes[myName] === pName || state.nightVotes[username] === pName);
+                            const isDonChecked = state.donChecks && (state.donChecks[myName]?.target === pName || state.donChecks[username]?.target === pName);
+                            if (!donAlreadyChecked) {
+                                if (isDonChecked) { isSelected = true; selectedLabel = '✅ Проверен'; }
+                            } else {
+                                if (isDonChecked) sideInfo = '🔍 Ранее проверен';
+                                if (isMafiaTarget) { isSelected = true; selectedLabel = '🔫 Цель выстрела'; }
+                            }
+                        } else if (myRoleLower.includes('мафия')) {
+                            const myNightVote = state.nightVotes && (state.nightVotes[myName] === pName || state.nightVotes[username] === pName);
+                            if (myNightVote) { isSelected = true; selectedLabel = '✅ Выбор сделан'; }
+                            if (!isSportMode && !myNightVote && state.nightVotes) {
+                                const av = Object.values(state.nightVotes);
+                                if (av.length > 0 && av.every(v => v === pName)) sideInfo = '🎯 Согласие команды';
+                            }
+                        } else if (myRoleLower.includes('доктор')) {
+                            if (state.doctorTarget === pName || (state.doctorHeals && (state.doctorHeals[myName] === pName || state.doctorHeals[username] === pName))) {
+                                isSelected = true; selectedLabel = '✅ Выбор сделан';
+                            }
+                        } else if (myRoleLower.includes('маньяк') || myRoleLower.includes('maniac')) {
+                            if (state.maniacTarget === pName) { isSelected = true; selectedLabel = '✅ Выбор сделан'; }
+                        }
+
+                        // Sheriff and Don Step 1 investigation are single-shot and lock after selection
+                        const isLockedSingleShot = (
+                            myRoleLower.includes('шериф') && !!(state.sheriffChecks && (state.sheriffChecks[myName] || state.sheriffChecks[username]))
+                        ) || (
+                            myRoleLower.includes('дон') && !donAlreadyChecked && !!(state.donChecks && (state.donChecks[myName] || state.donChecks[username]))
+                        );
+
+                        const isDisabledOther = isLockedSingleShot && !isSelected;
+
+                        const row = document.createElement('div');
+                        row.className = `action-list-row ${isSelected ? 'row-selected' : ''} ${isDisabledOther ? 'row-disabled' : ''}`;
+
+                        row.innerHTML = `
+                            <div class="action-row-left">
+                                <span class="action-row-num">#${pIndex}</span>
+                                <span class="action-row-avatar">👤</span>
+                                <div class="action-row-name-block">
+                                    <span class="action-row-name" title="${pName}">${pName}${isCandMe ? ' (Вы)' : ''}</span>
+                                    ${sideInfo ? `<span class="action-row-sub">${sideInfo}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="action-row-right">
+                                ${isSelected
+                                    ? `<div class="action-confirmed-badge">${selectedLabel}</div>`
+                                    : `<button type="button" class="action-btn" ${isDisabledOther ? 'disabled' : ''}>ВЫБРАТЬ</button>`
+                                }
+                            </div>
+                        `;
+
+                        if (!isSelected && !isDisabledOther) {
+                            const btn = row.querySelector('.action-btn');
+                            if (btn) {
+                                btn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    if (myRoleLower.includes('дон')) {
+                                        if (!donAlreadyChecked) socket.emit('roleAction', { roomId, roleName: 'Дон мафии', targetName: pName });
+                                        else socket.emit('nightAction', { roomId, targetName: pName });
+                                    } else if (myRoleLower.includes('шериф')) {
+                                        socket.emit('roleAction', { roomId, roleName: 'Шериф', targetName: pName });
+                                    } else {
+                                        socket.emit('nightAction', { roomId, targetName: pName });
+                                    }
+                                });
+                            }
+                        }
+
+                        nightList.appendChild(row);
+                    });
+
+                    nightWrap.appendChild(nightList);
+                    actionPanel.appendChild(nightWrap);
+                }
+            }
+        } else {
+            // ─── ДРУГИЕ ФАЗЫ (1, 0.5): Сетка 4×3 отображается ───
+            playersGrid.classList.remove('hidden');
+            playersGrid.style.display = 'grid';
+            playersGrid.className = 'table-players-grid grid-mode';
+            playersGrid.innerHTML = '';
+
+            const TOTAL_SLOTS = 12;
+            for (let i = 0; i < TOTAL_SLOTS; i++) {
+                const player = state.players[i];
+                const card = document.createElement('div');
+
+                if (player) {
+                    const pName = player.username || player.name || `Игрок ${i + 1}`;
+                    const isMe = (player.id === socket.id);
+                    const isAlive = player.isAlive !== false;
+                    const isSpeaker = state.currentSpeaker === pName;
+
+                    card.className = `player-card ${!isAlive ? 'dead' : ''} ${isSpeaker ? 'is-speaker' : ''}`;
+
+                    if (!isAlive) {
+                        card.style.borderColor = 'rgba(255,83,112,0.35)';
+                        card.style.background = 'rgba(255,83,112,0.06)';
+                    } else if (isSpeaker) {
+                        card.style.borderColor = 'rgba(255,209,102,0.7)';
+                        card.style.background = 'rgba(255,209,102,0.12)';
+                    } else if (isMe) {
+                        card.style.borderColor = 'rgba(29,209,161,0.5)';
+                        card.style.background = 'rgba(29,209,161,0.07)';
+                    }
+
+                    const statusText = isAlive ? (isSpeaker ? '🗣️ Говорит' : '🟢 В игре') : '💀 Выбыл';
+                    const statusColor = isAlive ? (isSpeaker ? 'var(--clr-gold)' : 'var(--clr-teal)') : 'var(--clr-red)';
+                    const audioBtn = createAudioButton(player, socket.id);
 
                     card.innerHTML = `
-                        <div class="cand-name">${pName}</div>
-                        <div class="vote-count">${targetStatusText}</div>
+                        <div style="font-size:0.78rem;font-weight:800;color:var(--clr-muted);opacity:0.7;">#${i + 1}</div>
+                        <div style="font-size:0.88rem;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${pName}">${pName}${isMe ? ' (Вы)' : ''}</div>
+                        <div style="font-size:0.75rem;color:${statusColor};">${statusText}</div>
                     `;
-
-                    card.onclick = () => {
-                        if (myRoleLower.includes('дон')) {
-                            if (!donAlreadyChecked) {
-                                // Этап 1: отправляем roleAction (проверка на Шерифа)
-                                socket.emit('roleAction', { roomId, roleName: 'Дон мафии', targetName: pName });
-                            } else {
-                                // Этап 2: отправляем nightAction (выстрел мафии)
-                                socket.emit('nightAction', { roomId, targetName: pName });
-                            }
-                        } else if (myRoleLower.includes('шериф')) {
-                            socket.emit('roleAction', { roomId, roleName: 'Шериф', targetName: pName });
-                        } else {
-                            socket.emit('nightAction', { roomId, targetName: pName });
-                        }
-                    };
-
-                    playersGrid.appendChild(card);
-                });
-            }
-        }
-        else if (state.phase === 0.5) {
-            // --- Фаза 0.5: Стартовая договорка чёрной команды ---
-            if (finishSpeechBtn) finishSpeechBtn.style.display = 'none';
-            if (skipNightBtn)    skipNightBtn.style.display    = 'none';
-
-            const isMafiaPlayer = me && me.isAlive !== false &&
-                (myRole.includes('Мафия') || myRole.includes('Дон') ||
-                 (me.team && me.team === 'Мафия'));
-
-            if (isMafiaPlayer) {
-                // Чёрные: переговорный экран
-                playersGrid.className = 'night-mode-civilian';
-                playersGrid.innerHTML = `
-                    <div class="night-banner huddle-banner--mafia">
-                        <div class="moon-icon">🎭</div>
-                        <h3>Договорка</h3>
-                        <p>
-                            У вас <strong>60 секунд</strong> на выработку совместной стратегии.<br>
-                            Город спит. Говорите свободно.
-                        </p>
-                        <div class="huddle-team-list">
-                            Члены команды:
-                            ${(state.players || []).filter(p => p.isAlive !== false && (p.team === 'Мафия'))
-                                .map(p => `<span class="huddle-team-tag">${p.username || p.name}</span>`)
-                                .join('')}
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Мирные: экран ожидания
-                playersGrid.className = 'night-mode-civilian';
-                playersGrid.innerHTML = `
-                    <div class="night-banner">
-                        <div class="moon-icon">🌙</div>
-                        <h3>Город спит...</h3>
-                        <p>Чёрная команда проводит закрытое совещание.<br>Ожидайте завершения договорки.</p>
-                    </div>
-                `;
-            }
-        }
-        else {
-            playersGrid.className = 'grid-mode';
-            if (finishSpeechBtn) finishSpeechBtn.style.display = 'none';
-            if (skipNightBtn) skipNightBtn.style.display = 'none';
-
-            state.players.forEach(player => {
-                const card = document.createElement('div');
-                card.className = `player-card ${player.id === null ? 'offline' : ''} ${!player.isAlive ? 'dead' : ''}`;
-                
-                card.innerHTML = `
-                    <div class="player-name">${player.username || player.name}</div>
-                    <div class="player-status">${player.id === null ? 'Офлайн' : (player.isAlive ? 'В игре' : 'Исключён')}</div>
-                `;
-
-                if (player.id) {
-                    const audioBtn = createAudioButton(player, socket.id);
                     card.appendChild(audioBtn);
+
+                    if (!isMe) {
+                        card.style.cursor = 'pointer';
+                        card.addEventListener('click', (e) => {
+                            if (e.target.closest('button')) return;
+                            showPlayerContextMenu(player, socket, roomId, isHost, card);
+                        });
+                        card.addEventListener('contextmenu', (e) => {
+                            e.preventDefault();
+                            if (e.target.closest('button')) return;
+                            showPlayerContextMenu(player, socket, roomId, isHost, card);
+                        });
+                    }
+                } else {
+                    card.className = 'player-card';
+                    card.style.opacity = '0.35';
+                    card.style.cursor = 'default';
+                    card.innerHTML = `
+                        <div style="font-size:0.78rem;font-weight:800;color:var(--clr-muted);opacity:0.7;">#${i + 1}</div>
+                        <div style="font-size:0.82rem;color:var(--clr-muted);">Свободно</div>
+                    `;
                 }
                 playersGrid.appendChild(card);
-            });
+            }
+
+            // Фаза 1: Общее собрание (actionPanel строго скрыт)
+            if (state.phase === 1) {
+                if (actionPanel) {
+                    actionPanel.innerHTML = '';
+                    actionPanel.classList.add('hidden');
+                    actionPanel.style.display = 'none';
+                }
+            }
+
+            // Фаза 0.5 — договорка
+            if (state.phase === 0.5) {
+                const isMafiaPlayer = me && me.isAlive !== false &&
+                    (myRole.includes('Мафия') || myRole.includes('Дон') || (me.team && me.team === 'Мафия'));
+
+                if (actionPanel) {
+                    actionPanel.classList.remove('hidden');
+                    actionPanel.style.display = 'flex';
+                    actionPanel.style.flexDirection = 'column';
+                    actionPanel.style.alignItems = 'center';
+                    actionPanel.style.gap = '8px';
+
+                    const huddle = document.createElement('div');
+                    huddle.style.cssText = `padding:12px 16px;border-radius:12px;text-align:center;background:${isMafiaPlayer ? 'rgba(255,83,112,0.1)' : 'rgba(84,160,255,0.08)'};border:1px solid ${isMafiaPlayer ? 'rgba(255,83,112,0.3)' : 'rgba(84,160,255,0.2)'};max-width:440px;width:100%;`;
+                    if (isMafiaPlayer) {
+                        const teamNames = (state.players || []).filter(p => p.isAlive !== false && p.team === 'Мафия').map(p => `<span class="huddle-team-tag">${p.username || p.name}</span>`).join('');
+                        huddle.innerHTML = `<div style="font-size:1.4rem;">🎭</div><h3 style="color:var(--clr-red);margin:4px 0;">Договорка</h3><p style="color:var(--clr-muted);font-size:0.85rem;">У вас <strong>60 секунд</strong> на выработку стратегии. Говорите свободно.</p><div class="huddle-team-list" style="margin-top:6px;">Члены команды: ${teamNames}</div>`;
+                    } else {
+                        huddle.innerHTML = `<div style="font-size:1.4rem;">🌙</div><h3 style="color:var(--clr-muted);margin:4px 0;">Город спит...</h3><p style="color:var(--clr-muted);font-size:0.85rem;">Чёрная команда проводит закрытое совещание. Ожидайте завершения договорки.</p>`;
+                    }
+                    actionPanel.appendChild(huddle);
+                }
+            }
         }
 
         if (endGameBtn) {
-            const isHost = state.players.length > 0 && state.players[0].id === socket.id;
             endGameBtn.style.display = isHost ? 'inline-block' : 'none';
         }
     }
@@ -1160,6 +1479,8 @@ function updateSidebarPlayers(players, state) {
         aliveCountEl.textContent = `Живых: ${alivePlayers.length}/${players.length}`;
     }
 
+    const isHost = players.length > 0 && players[0].id === socket.id;
+
     sidebarList.innerHTML = '';
     players.forEach((player, index) => {
         const pName = player.username || player.name || `Игрок ${index + 1}`;
@@ -1169,6 +1490,8 @@ function updateSidebarPlayers(players, state) {
 
         const row = document.createElement('div');
         row.className = `sidebar-player-row ${isSpeaker ? 'is-speaker' : ''} ${!isAlive ? 'is-dead' : ''}`;
+        row.dataset.playerId = player.userId || player.id;
+        row.dataset.socketId = player.id;
 
         const left = document.createElement('div');
         left.className = 'sidebar-player-left';
@@ -1190,32 +1513,54 @@ function updateSidebarPlayers(players, state) {
 
         row.appendChild(left);
         row.appendChild(right);
+
+        if (!isMe) {
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
+                showPlayerContextMenu(player, socket, roomId, isHost, row);
+            });
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                if (e.target.closest('button')) return;
+                showPlayerContextMenu(player, socket, roomId, isHost, row);
+            });
+        }
+
         sidebarList.appendChild(row);
     });
 }
 
 function initMobileLogDrawer() {
-    const mobileLogBtn = document.getElementById('mobile-log-toggle-btn');
     const mobileCloseLogBtn = document.getElementById('mobile-log-close-btn');
     const mobileLogBackdrop = document.getElementById('mobile-log-backdrop');
     const gamePanelLog = document.getElementById('game-panel-log');
 
     function toggleMobileLog(open) {
-        if (!gamePanelLog) return;
-        const isOpen = gamePanelLog.classList.contains('mobile-open');
+        const logPanel = document.getElementById('game-panel-log') || gamePanelLog;
+        const backdrop = document.getElementById('mobile-log-backdrop') || mobileLogBackdrop;
+        if (!logPanel) return;
+        const isOpen = logPanel.classList.contains('mobile-open');
         const shouldOpen = (open !== undefined) ? open : !isOpen;
         if (shouldOpen) {
-            gamePanelLog.classList.add('mobile-open');
-            if (mobileLogBackdrop) mobileLogBackdrop.classList.add('active');
+            logPanel.classList.add('mobile-open');
+            if (backdrop) backdrop.classList.add('active');
         } else {
-            gamePanelLog.classList.remove('mobile-open');
-            if (mobileLogBackdrop) mobileLogBackdrop.classList.remove('active');
+            logPanel.classList.remove('mobile-open');
+            if (backdrop) backdrop.classList.remove('active');
         }
     }
 
     window.toggleMobileLog = toggleMobileLog;
 
-    if (mobileLogBtn) mobileLogBtn.onclick = () => toggleMobileLog(true);
+    // Привязываем все кнопки журнала с классом .mobile-log-btn или соответствующими ID
+    document.querySelectorAll('.mobile-log-btn, #mobile-log-toggle-btn, #lobby-log-toggle-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.preventDefault();
+            toggleMobileLog(true);
+        };
+    });
+
     if (mobileCloseLogBtn) mobileCloseLogBtn.onclick = () => toggleMobileLog(false);
     if (mobileLogBackdrop) mobileLogBackdrop.onclick = () => toggleMobileLog(false);
 }
