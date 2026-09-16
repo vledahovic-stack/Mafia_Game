@@ -2727,14 +2727,30 @@ ul.room-list-mock {
 
 /* Адаптив для смартфонов */
 @media (max-width: 768px) {
+  html,
   body {
-    padding: 0 !important;
-    margin: 0 !important;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
   }
-  body > * {
+
+  .app-container,
+  .game-fullscreen-layout,
+  .lobby-fullscreen-layout,
+  .main-wrapper,
+  .page-container,
+  .lobby-container,
+  #app {
+    min-height: 100vh !important;
+    height: 100% !important;
     width: 100% !important;
     max-width: 100% !important;
+    margin: 0 !important;
     border-radius: 0 !important;
+  }
+
+  .action-list-wrap {
+    width: 96%;
   }
   .action-btn {
     padding: 6px 13px;
