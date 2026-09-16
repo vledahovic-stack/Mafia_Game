@@ -2801,19 +2801,22 @@ ul.room-list-mock {
     display: none !important;
   }
 
-  /* Баланс по центру шапки на мобильных */
+  /* Баланс выровнен по правому краю рядом с кнопкой «☰» на мобильных */
   .lobby-container #user-balance {
-    position: absolute !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+    position: static !important;
+    transform: none !important;
     font-size: 13px !important;
     font-weight: 800 !important;
     color: var(--clr-gold) !important;
     background: rgba(255, 209, 102, 0.12) !important;
     border: 1px solid rgba(255, 209, 102, 0.3) !important;
-    padding: 3px 9px !important;
+    padding: 3px 8px !important;
     border-radius: 12px !important;
     white-space: nowrap !important;
+    margin-right: 4px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
   }
 
   /* Скрываем стандартную горизонтальную панель кнопок на мобильных */
@@ -2928,6 +2931,17 @@ ul.room-list-mock {
     background: linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(255, 159, 67, 0.15) 100%) !important;
     border: 1px solid rgba(255, 71, 87, 0.45) !important;
     color: #ff6b81 !important;
+  }
+
+  .mobile-menu-item.mobile-menu-item--reload {
+    background: rgba(29, 209, 161, 0.12) !important;
+    border: 1px solid rgba(29, 209, 161, 0.35) !important;
+    color: var(--clr-teal) !important;
+    font-weight: 700 !important;
+  }
+
+  .mobile-menu-item.mobile-menu-item--reload:active {
+    background: rgba(29, 209, 161, 0.25) !important;
   }
 
   .mobile-menu-item.mobile-menu-item--logout {
@@ -3825,6 +3839,7 @@ ul.room-list-mock {
 #mobile-nav-btn-admin,
 #mobile-btn-bonus,
 #mobile-btn-logout,
+#mobile-btn-reload,
 #mobile-menu-divider-bonus,
 #mobile-menu-divider-logout,
 #auth-register-content,

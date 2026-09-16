@@ -243,6 +243,19 @@ function switchMobileTab(tabName) {
     switchLobbyTab(tabName);
 }
 
+// Принудительная перезагрузка страницы для сброса кэша после деплоя
+function hardReloadApp() {
+    closeMobileMenu();
+    try {
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+            }).catch(() => {});
+        }
+    } catch (e) {}
+    window.location.reload(true);
+}
+
 // Закрытие меню при клике вне его области
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('mobile-dropdown-menu');
@@ -428,68 +441,95 @@ async function initAuth() {
     }
 }
 
-// Загрузка и динамическая генерация стилизованных комнат
+// Отрисовка списка комнат
+function renderRooms(rooms) {
+    const roomsList = document.getElementById('rooms-list') || document.querySelector('main section:nth-child(2) ul');
+    const onlineCounter = document.getElementById('online-counter');
+    
+    if (!roomsList) return;
+    roomsList.innerHTML = '';
+
+    let totalOnline = 0;
+
+    if (!rooms || rooms.length === 0) {
+        roomsList.innerHTML = `
+            <li class="room-card room-card--empty">
+                <span>Нет активных комнат. Будьте первым, кто создаст!</span>
+            </li>
+        `;
+        if (onlineCounter) onlineCounter.textContent = 'В онлайне: 0';
+        return;
+    }
+
+    rooms.forEach(room => {
+        const playersCount = room.players ? room.players.length : 0;
+        const maxPlayers = room.maxPlayers || (room.settings && room.settings.maxPlayers) || 10;
+        totalOnline += playersCount;
+
+        const isPlaying = room.status === 'playing' || room.isStarted;
+        const cardClass = isPlaying ? 'playing' : 'waiting';
+        const statusBadgeClass = isPlaying ? 'status-playing' : 'status-waiting';
+        const statusText = isPlaying ? 'Идёт игра' : 'Ждём';
+        const btnText = isPlaying ? 'Смотреть' : 'Заскочить';
+
+        const li = document.createElement('li');
+        li.className = `room-card ${cardClass}`;
+        li.innerHTML = `
+            <div class="room-info">
+                <div class="room-header">
+                    <span class="room-title">Комната #${room.id}</span>
+                    <span class="badge-status ${statusBadgeClass}">${statusText}</span>
+                </div>
+                <div class="room-details">
+                    <span>👥 ${playersCount}/${maxPlayers}</span>
+                    <span>🎭 ${(room.settings && room.settings.mode) || room.mode || 'Классика'}</span>
+                </div>
+            </div>
+            <div class="room-actions">
+                <button class="btn-join ${!isPlaying ? 'active-btn' : ''}" onclick="joinRoom('${room.id}')" ${isPlaying ? 'disabled' : ''}>${btnText}</button>
+            </div>
+        `;
+        roomsList.appendChild(li);
+    });
+
+    if (onlineCounter) {
+        onlineCounter.textContent = `В онлайне: ${totalOnline}`;
+    }
+}
+
+// Загрузка комнат через REST API
 async function loadRooms() {
     try {
         const response = await fetch('/api/rooms');
-        const rooms = await response.json();
-        const roomsList = document.getElementById('rooms-list') || document.querySelector('main section:nth-child(2) ul');
-        const onlineCounter = document.getElementById('online-counter');
-        
-        if (!roomsList) return;
-        
-        roomsList.innerHTML = '';
-
-        let totalOnline = 0;
-
-        if (!rooms || rooms.length === 0) {
-            roomsList.innerHTML = `
-                <li class="room-card room-card--empty">
-                    <span>Нет активных комнат. Будьте первым, кто создаст!</span>
-                </li>
-            `;
-            if (onlineCounter) onlineCounter.textContent = 'В онлайне: 0';
-            return;
-        }
-
-        rooms.forEach(room => {
-            const playersCount = room.players ? room.players.length : 0;
-            const maxPlayers = room.maxPlayers || 10;
-            totalOnline += playersCount;
-
-            const isPlaying = room.status === 'playing' || room.isStarted;
-            const cardClass = isPlaying ? 'playing' : 'waiting';
-            const statusBadgeClass = isPlaying ? 'status-playing' : 'status-waiting';
-            const statusText = isPlaying ? 'Идёт игра' : 'Ждём';
-            const btnText = isPlaying ? 'Смотреть' : 'Заскочить';
-
-            const li = document.createElement('li');
-            li.className = `room-card ${cardClass}`;
-            li.innerHTML = `
-                <div class="room-info">
-                    <div class="room-header">
-                        <span class="room-title">Комната #${room.id}</span>
-                        <span class="badge-status ${statusBadgeClass}">${statusText}</span>
-                    </div>
-                    <div class="room-details">
-                        <span>👥 ${playersCount}/${maxPlayers}</span>
-                        <span>🎭 ${room.mode || 'Классика'}</span>
-                    </div>
-                </div>
-                <div class="room-actions">
-                    <button class="btn-join ${!isPlaying ? 'active-btn' : ''}" onclick="joinRoom('${room.id}')" ${isPlaying ? 'disabled' : ''}>${btnText}</button>
-                </div>
-            `;
-            roomsList.appendChild(li);
-        });
-
-        if (onlineCounter) {
-            onlineCounter.textContent = `В онлайне: ${totalOnline}`;
+        if (response.ok) {
+            const rooms = await response.json();
+            renderRooms(rooms);
         }
     } catch (e) {
         console.error('Ошибка при загрузке комнат:', e);
     }
 }
+
+// Мгновенное обновление списка комнат по событиям WebSockets (без таймеров)
+socket.on('update_rooms', (rooms) => {
+    if (Array.isArray(rooms)) {
+        renderRooms(rooms);
+    } else {
+        loadRooms();
+    }
+});
+
+socket.on('room_created', () => {
+    loadRooms();
+});
+
+socket.on('room_deleted', () => {
+    loadRooms();
+});
+
+socket.on('room_status_changed', () => {
+    loadRooms();
+});
 
 function joinRoom(roomId) {
     window.location.href = `/game.html?id=${roomId}`;

@@ -55,6 +55,9 @@
         <button id="mobile-nav-btn-settings" class="mobile-menu-item" onclick="switchMobileTab('settings')">⚙️ Настройки</button>
         <button id="mobile-nav-btn-admin" class="mobile-menu-item btn-admin-panel" style="display: none;" onclick="window.location.href='/admin.html'">🎩 Панель админа</button>
 
+        <div class="mobile-menu-divider"></div>
+        <button id="mobile-btn-reload" class="mobile-menu-item mobile-menu-item--reload" onclick="hardReloadApp()">🔄 Обновить приложение</button>
+
         <div id="mobile-menu-divider-logout" class="mobile-menu-divider" style="display: none;"></div>
         <button id="mobile-btn-logout" class="mobile-menu-item mobile-menu-item--logout" style="display: none;" onclick="handleLogout()">🚪 Выйти</button>
     </div>
