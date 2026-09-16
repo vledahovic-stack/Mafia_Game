@@ -2727,8 +2727,14 @@ ul.room-list-mock {
 
 /* Адаптив для смартфонов */
 @media (max-width: 768px) {
-  .action-list-wrap {
-    width: 96%;
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
   }
   .action-btn {
     padding: 6px 13px;
@@ -2738,18 +2744,6 @@ ul.room-list-mock {
     min-width: 28px;
     height: 28px;
     font-size: 0.72rem;
-  }
-}
-
-@media (max-width: 768px) {
-  body {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  body > * {
-    width: 100% !important;
-    max-width: 100% !important;
-    border-radius: 0 !important;
   }
 }
 
