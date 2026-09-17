@@ -2904,35 +2904,37 @@ ul.room-list-mock {
   }
 
   #game-screen.speech-phase-active .game-action-panel {
-    flex: 0 1 auto !important;
+    flex: 0 0 auto !important;
     min-height: 0 !important;
     height: auto !important;
     max-height: none !important;
-    align-self: stretch !important;
+    align-self: flex-start !important;
     align-items: center !important;
     align-content: flex-start !important;
     justify-content: flex-start !important;
     gap: 8px !important;
     margin: 0 0 auto !important;
     padding-top: 8px !important;
+    width: 100% !important;
   }
 
-  #game-screen.speech-phase-active .speaker-player-header-row {
-    justify-content: flex-start !important;
-    align-self: auto !important;
-    margin: 0 !important;
-  }
-
+  #game-screen.speech-phase-active .speaker-player-header-row,
   #game-screen.speech-phase-active .speaker-card-prominent,
   #game-screen.speech-phase-active .speaker-status-tag,
   #game-screen.speech-phase-active .nomination-status-badge,
   #game-screen.speech-phase-active .action-list-wrap {
+    justify-content: flex-start !important;
+    align-self: auto !important;
     margin-top: 0 !important;
+    margin-bottom: auto !important;
+    flex: 0 0 auto !important;
   }
 
-  #game-screen.speech-phase-active .speaker-card-prominent {
+  #game-screen.speech-phase-active .speaker-card-prominent,
+  #game-screen.speech-phase-active .speaker-player-header-row {
+    align-self: flex-start !important;
+    margin-top: 0 !important;
     margin-right: auto !important;
-    margin-bottom: 0 !important;
     margin-left: auto !important;
   }
 
