@@ -637,6 +637,7 @@ function renderGridContent(state) {
         const actionPanel = document.getElementById('game-action-panel');
         const centerPanel = document.querySelector('.game-panel-center');
 
+        if (gameScreen) gameScreen.classList.toggle('speech-phase-active', isSpeechPhase);
         if (centerPanel) centerPanel.classList.toggle('speech-phase-active', isSpeechPhase);
         if (actionPanel) actionPanel.classList.toggle('speech-phase-active', isSpeechPhase);
 
