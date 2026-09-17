@@ -2678,11 +2678,9 @@ ul.room-list-mock {
   .game-panel-center {
     display: flex !important;
     flex-direction: column !important;
-    justify-content: flex-start !important;
     align-items: stretch !important;
     flex: 1 !important;
     min-height: 0 !important;
-    height: 100% !important;
     padding: 0 !important;
     background: transparent !important;
     border: none !important;
@@ -2860,6 +2858,21 @@ ul.room-list-mock {
     margin-top: auto !important;
     padding: 0 0 max(10px, env(safe-area-inset-bottom)) !important;
     flex-shrink: 0 !important;
+  }
+
+  .game-panel-center.speech-phase-active {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    height: 100dvh !important;
+  }
+
+  .game-panel-center.speech-phase-active .game-action-panel {
+    margin-bottom: auto !important;
+  }
+
+  .game-panel-center.speech-phase-active .speaker-player-header-row {
+    margin-top: 10px !important;
   }
 
   #skip-phase-btn,

@@ -635,6 +635,10 @@ function renderGridContent(state) {
         const isVotingPhase = (state.phase === 3);
         const isNightPhase = (state.phase === 5);
         const actionPanel = document.getElementById('game-action-panel');
+        const centerPanel = document.querySelector('.game-panel-center');
+
+        if (centerPanel) centerPanel.classList.toggle('speech-phase-active', isSpeechPhase);
+        if (actionPanel) actionPanel.classList.toggle('speech-phase-active', isSpeechPhase);
 
         // ─── Полная очистка состояния обоих экранов перед рендером новой фазы ───
         playersGrid.innerHTML = '';
