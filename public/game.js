@@ -482,12 +482,16 @@ function updateCentralPhaseBanner(state) {
     phaseBanner.style.borderColor = phaseBorder;
 
     phaseBanner.innerHTML = `
-        <div class="phase-banner-day" style="color:${phaseColor};">
-            <span class="phase-banner-icon">${phaseIcon}</span>
-            <strong>${dayText}</strong>
+        <div class="phase-banner-content">
+            <div class="phase-banner-day" style="color:${phaseColor};">
+                <span class="phase-banner-icon">${phaseIcon}</span>
+                <strong>${dayText}</strong>
+            </div>
+            <span class="phase-banner-sep">•</span>
+            <div class="phase-banner-title">${phaseText}</div>
+            <span class="phase-banner-sep">•</span>
+            <div class="phase-banner-timer">⏱ ${timerText}</div>
         </div>
-        <div class="phase-banner-title">${phaseText}</div>
-        <div class="phase-banner-timer">⏱ ${timerText}</div>
     `;
 }
 
@@ -1566,6 +1570,89 @@ function initMobileLogDrawer() {
 }
 
 initMobileLogDrawer();
+
+function initBurgerMenu() {
+    function closeAllBurgerDropdowns() {
+        document.querySelectorAll('.game-burger-dropdown').forEach(dd => dd.classList.remove('open'));
+    }
+
+    document.querySelectorAll('.game-burger-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const wrap = btn.closest('.game-burger-menu-wrap');
+            const dropdown = wrap ? wrap.querySelector('.game-burger-dropdown') : null;
+            if (!dropdown) return;
+            const isOpen = dropdown.classList.contains('open');
+            closeAllBurgerDropdowns();
+            if (!isOpen) {
+                dropdown.classList.add('open');
+            }
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.game-burger-menu-wrap')) {
+            closeAllBurgerDropdowns();
+        }
+    });
+
+    // Пункт «⚙️ Настройки»
+    document.querySelectorAll('.burger-settings-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            closeAllBurgerDropdowns();
+            const openSettingsBtn = document.getElementById('open-settings-btn');
+            if (openSettingsBtn && openSettingsBtn.style.display !== 'none') {
+                openSettingsBtn.click();
+            } else {
+                const settingsModal = document.getElementById('settings-modal');
+                if (settingsModal) {
+                    if (currentSettings) {
+                        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+                        const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+                        if (currentSettings.timers) {
+                            setVal('setting-generalMeeting', currentSettings.timers.generalMeeting);
+                            setVal('setting-individualSpeech', currentSettings.timers.individualSpeech);
+                        }
+                        if (currentSettings.rules) {
+                            setVal('setting-maxPlayers', currentSettings.rules.maxPlayers);
+                            setVal('setting-gameMode', currentSettings.rules.gameMode || 'city');
+                            setCheck('setting-firstDayVoting', currentSettings.rules.firstDayVoting);
+                            setCheck('setting-secretVoting', currentSettings.rules.secretVoting);
+                        }
+                        if (currentSettings.roles) {
+                            setVal('setting-extraMafia', currentSettings.roles.extraMafia || 0);
+                            setCheck('setting-don', currentSettings.roles.don);
+                            setCheck('setting-sheriff', currentSettings.roles.sheriff);
+                            setCheck('setting-doctor', currentSettings.roles.doctor);
+                            setCheck('setting-zhivchik', currentSettings.roles.zhivchik);
+                            setCheck('setting-maniac', currentSettings.roles.maniac);
+                        }
+                    }
+                    settingsModal.style.display = 'flex';
+                }
+            }
+        });
+    });
+
+    // Пункт «🔄 Обновить»
+    document.querySelectorAll('.burger-reload-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            closeAllBurgerDropdowns();
+            window.location.reload(true);
+        });
+    });
+
+    // Пункт «🚪 Выйти»
+    document.querySelectorAll('.burger-leave-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            closeAllBurgerDropdowns();
+            socket.emit('leaveRoom', { roomId });
+            window.location.href = '/';
+        });
+    });
+}
+
+initBurgerMenu();
 
 window.openRoleMenu = function() {
     const modal = document.getElementById('role-select-modal');
