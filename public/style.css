@@ -2556,7 +2556,7 @@ ul.room-list-mock {
     height: 100% !important;
     max-height: 100% !important;
     overflow: hidden !important;
-    gap: 6px !important;
+    gap: 4px !important;
     box-sizing: border-box !important;
   }
 
@@ -2679,6 +2679,10 @@ ul.room-list-mock {
     overflow: hidden !important;
   }
 
+  .game-action-panel {
+    gap: 4px !important;
+  }
+
   /* Сетка участников 3х4 (3 в ряд, 4 в столбик) */
   #players-grid.table-players-grid {
     display: grid !important;
@@ -2738,6 +2742,7 @@ ul.room-list-mock {
     padding: 8px 12px !important;
     border-radius: 10px !important;
     max-width: 100% !important;
+    margin-top: 4px !important;
   }
 
   .speaker-avatar-icon {
@@ -2757,6 +2762,15 @@ ul.room-list-mock {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
+    max-height: 42vh !important;
+    overflow: hidden !important;
+  }
+
+  .action-list {
+    max-height: 38vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-right: 2px !important;
   }
 
   .action-list-header {
@@ -2778,13 +2792,20 @@ ul.room-list-mock {
   }
 
   #skip-phase-btn,
-  #finish-speech-btn,
-  #skip-night-btn {
+  #skip-night-btn,
+  #end-game-btn {
+    display: none !important;
+  }
+
+  #finish-speech-btn {
     position: fixed !important;
-    bottom: 15px !important;
-    right: 15px !important;
+    left: 50% !important;
+    bottom: calc(15px + env(safe-area-inset-bottom)) !important;
+    transform: translateX(-50%) !important;
+    right: auto !important;
     z-index: 100 !important;
     min-height: 44px !important;
+    min-width: 180px !important;
     padding: 10px 18px !important;
     font-size: 0.92rem !important;
     font-weight: 800 !important;
@@ -2792,40 +2813,9 @@ ul.room-list-mock {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6) !important;
     cursor: pointer !important;
     margin: 0 !important;
-  }
-
-  #skip-phase-btn {
-    background: linear-gradient(135deg, #10ac84 0%, #1dd1a1 100%) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(29, 209, 161, 0.4) !important;
-  }
-
-  #finish-speech-btn {
     background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%) !important;
     color: #ffffff !important;
     border: 1px solid rgba(243, 156, 18, 0.5) !important;
-  }
-
-  #skip-night-btn {
-    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  }
-
-  #end-game-btn {
-    position: fixed !important;
-    bottom: 15px !important;
-    left: 15px !important;
-    z-index: 100 !important;
-    min-height: 44px !important;
-    padding: 10px 14px !important;
-    font-size: 0.85rem !important;
-    background: rgba(255, 83, 112, 0.15) !important;
-    border: 1px solid rgba(255, 83, 112, 0.4) !important;
-    color: var(--clr-red) !important;
-    border-radius: var(--r-sm) !important;
-    cursor: pointer !important;
-    margin: 0 !important;
   }
 
   #start-game-btn[style*="display: none"],

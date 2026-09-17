@@ -558,6 +558,7 @@ socket.on('gameStateUpdate', (state) => {
     }
 
     const me = state.players?.find(p => (p.username === username || p.name === username || p.id === socket.id));
+    const isHost = !!state.players && state.players.length > 0 && state.players[0].id === socket.id;
 
     if (skipPhaseBtn) {
         skipPhaseBtn.style.display = state.phase === 1 ? 'inline-block' : 'none';
@@ -572,6 +573,12 @@ socket.on('gameStateUpdate', (state) => {
         } else {
             skipPhaseBtn.disabled = false;
         }
+    }
+
+    const endGameBurgerItem = document.querySelector('.burger-end-game-item');
+    const isBurgerGameActive = !!gameScreen && gameScreen.style.display !== 'none' && !!state && typeof state.phase === 'number' && state.phase > 0 && !!me;
+    if (endGameBurgerItem) {
+        endGameBurgerItem.style.display = (window.innerWidth <= 768 && isBurgerGameActive && isHost) ? 'flex' : 'none';
     }
 
     if (state.gameLog) {
@@ -596,12 +603,14 @@ function renderGridContent(state) {
         if (!finishSpeechBtn) {
             finishSpeechBtn = document.createElement('button');
             finishSpeechBtn.id = 'finish-speech-btn';
-            finishSpeechBtn.textContent = 'Закончить речь';
+            finishSpeechBtn.textContent = window.innerWidth <= 768 ? 'Пропустить речь' : 'Закончить речь';
             finishSpeechBtn.style.display = 'none';
             finishSpeechBtn.addEventListener('click', () => {
                 socket.emit('finishSpeech', { roomId });
             });
             gameControls.appendChild(finishSpeechBtn);
+        } else {
+            finishSpeechBtn.textContent = window.innerWidth <= 768 ? 'Пропустить речь' : 'Закончить речь';
         }
 
         if (!skipNightBtn) {
@@ -1643,6 +1652,13 @@ function initBurgerMenu() {
     });
 
     // Пункт «🚪 Выйти»
+    document.querySelectorAll('.burger-end-game-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            closeAllBurgerDropdowns();
+            socket.emit('endGame', { roomId });
+        });
+    });
+
     document.querySelectorAll('.burger-leave-item').forEach(btn => {
         btn.addEventListener('click', () => {
             closeAllBurgerDropdowns();
