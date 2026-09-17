@@ -2914,6 +2914,7 @@ ul.room-list-mock {
     justify-content: flex-start !important;
     gap: 8px !important;
     margin: 0 0 auto !important;
+    margin-bottom: auto !important;
     padding-top: 8px !important;
     width: 100% !important;
   }
@@ -2925,6 +2926,7 @@ ul.room-list-mock {
   #game-screen.speech-phase-active .action-list-wrap {
     justify-content: flex-start !important;
     align-self: auto !important;
+    height: auto !important;
     margin-top: 0 !important;
     margin-bottom: auto !important;
     flex: 0 0 auto !important;
