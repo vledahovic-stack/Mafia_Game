@@ -667,18 +667,23 @@ function renderGridContent(state) {
                 const speakerCard = document.createElement('div');
                 speakerCard.className = 'speaker-card-prominent';
                 speakerCard.innerHTML = `
-                    <div class="speaker-avatar-icon">${state.phase === 4 ? '💬' : '🗣️'}</div>
-                    <div class="speaker-name-display">
-                        <span style="color:var(--clr-gold);font-size:1.1rem;font-weight:900;">#${speakerIndex}</span>
-                        <span>${speakerName}${isSpeakerMe ? ' (Вы)' : ''}</span>
+                    <div class="speaker-player-header-row">
+                        <span class="speaker-player-number">#${speakerIndex}</span>
+                        <span class="speaker-player-name">${speakerName}${isSpeakerMe ? ' (Вы)' : ''}</span>
                     </div>
-                    <div class="speaker-status-tag">${state.phase === 4 ? 'Последнее слово...' : 'Индивидуальная речь...'}</div>
+                    <div class="speaker-player-avatar">${state.phase === 4 ? '💬' : '🗣️'}</div>
                 `;
                 if (speakerPlayer) {
                     const audioBtn = createAudioButton(speakerPlayer, socket.id);
+                    audioBtn.classList.add('speaker-card-audio-btn');
                     speakerCard.appendChild(audioBtn);
                 }
                 actionPanel.appendChild(speakerCard);
+
+                const speakerStatus = document.createElement('div');
+                speakerStatus.className = 'speaker-status-tag';
+                speakerStatus.textContent = state.phase === 4 ? 'Последнее слово...' : 'Индивидуальная речь...';
+                actionPanel.appendChild(speakerStatus);
 
                 // Информационный блок с вынесенным кандидатом
                 const currentNomination = state.speakerNominations ? state.speakerNominations[speakerName] : null;
