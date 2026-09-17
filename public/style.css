@@ -2327,6 +2327,8 @@ ul.room-list-mock {
     box-sizing: border-box !important;
     display: flex !important;
     flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
     overflow: hidden !important;
     gap: 6px !important;
     background: var(--bg-app) !important;
@@ -2676,6 +2678,8 @@ ul.room-list-mock {
   .game-panel-center {
     display: flex !important;
     flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
     flex: 1 !important;
     min-height: 0 !important;
     height: 100% !important;
@@ -2694,6 +2698,8 @@ ul.room-list-mock {
     margin-top: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
   }
 
   /* Сетка участников 3х4 (3 в ряд, 4 в столбик) */
