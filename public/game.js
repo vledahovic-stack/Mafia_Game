@@ -663,21 +663,18 @@ function renderGridContent(state) {
                 actionPanel.classList.remove('hidden');
                 actionPanel.style.display = 'flex';
 
-                // Увеличенная карточка текущего спикера
+                // Увеличенная карточка текущего спикера в нормальном потоке: строка сверху, квадратная карточка ниже
+                const speakerHeader = document.createElement('div');
+                speakerHeader.className = 'speaker-player-header-row';
+                speakerHeader.innerHTML = `
+                    <span class="speaker-player-number">#${speakerIndex}</span>
+                    <span class="speaker-player-name">${speakerName}${isSpeakerMe ? ' (Вы)' : ''}</span>
+                `;
+                actionPanel.appendChild(speakerHeader);
+
                 const speakerCard = document.createElement('div');
                 speakerCard.className = 'speaker-card-prominent';
-                speakerCard.innerHTML = `
-                    <div class="speaker-player-header-row">
-                        <span class="speaker-player-number">#${speakerIndex}</span>
-                        <span class="speaker-player-name">${speakerName}${isSpeakerMe ? ' (Вы)' : ''}</span>
-                    </div>
-                    <div class="speaker-player-avatar">${state.phase === 4 ? '💬' : '🗣️'}</div>
-                `;
-                if (speakerPlayer) {
-                    const audioBtn = createAudioButton(speakerPlayer, socket.id);
-                    audioBtn.classList.add('speaker-card-audio-btn');
-                    speakerCard.appendChild(audioBtn);
-                }
+                speakerCard.innerHTML = '<div class="speaker-player-avatar" aria-label="Карточка спикера"></div>';
                 actionPanel.appendChild(speakerCard);
 
                 const speakerStatus = document.createElement('div');
