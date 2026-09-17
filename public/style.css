@@ -2767,7 +2767,7 @@ ul.room-list-mock {
     max-width: var(--speaker-content-width) !important;
     text-align: center !important;
     line-height: 1.2 !important;
-    margin: 0 auto !important;
+    margin: 10px auto 0 !important;
     padding-top: 0 !important;
   }
 
