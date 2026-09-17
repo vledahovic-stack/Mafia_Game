@@ -2829,6 +2829,20 @@ ul.room-list-mock {
     overflow: hidden !important;
   }
 
+  #game-screen.speech-phase-active,
+  .speech-phase-container {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+  }
+
+  #game-screen.speech-phase-active .action-list-wrap,
+  .speech-phase-container .action-list-wrap {
+    width: 96% !important;
+    margin-top: 0 !important;
+    margin-bottom: auto !important;
+  }
+
   .action-list {
     max-height: 38vh !important;
     overflow-y: auto !important;
@@ -2860,18 +2874,29 @@ ul.room-list-mock {
     flex-shrink: 0 !important;
   }
 
-  .game-panel-center.speech-phase-active {
+  #game-screen.speech-phase-active {
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
     height: 100dvh !important;
+    max-height: 100dvh !important;
   }
 
-  .game-panel-center.speech-phase-active .game-action-panel {
+  #game-screen.speech-phase-active .game-panel-center {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    justify-content: flex-start !important;
+  }
+
+  #game-screen.speech-phase-active .game-action-panel {
+    flex: 0 1 auto !important;
+    min-height: 0 !important;
+    justify-content: flex-start !important;
     margin-bottom: auto !important;
   }
 
-  .game-panel-center.speech-phase-active .speaker-player-header-row {
+  #game-screen.speech-phase-active .speaker-player-header-row {
     margin-top: 10px !important;
   }
 
