@@ -2878,8 +2878,19 @@ ul.room-list-mock {
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
+    margin-top: 0 !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
+  }
+
+  body:has(#game-screen.speech-phase-active),
+  #app:has(#game-screen.speech-phase-active),
+  #game-screen.speech-phase-active.game-fullscreen-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-content: flex-start !important;
+    margin-top: 0 !important;
   }
 
   #game-screen.speech-phase-active .game-panel-center {
@@ -2889,6 +2900,7 @@ ul.room-list-mock {
     justify-content: flex-start !important;
     align-items: stretch !important;
     gap: 0 !important;
+    margin-top: 0 !important;
   }
 
   #game-screen.speech-phase-active .game-action-panel {
@@ -2901,13 +2913,27 @@ ul.room-list-mock {
     align-content: flex-start !important;
     justify-content: flex-start !important;
     gap: 8px !important;
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-    margin-bottom: auto !important;
+    margin: 0 0 auto !important;
+    padding-top: 8px !important;
   }
 
   #game-screen.speech-phase-active .speaker-player-header-row {
-    margin-top: 8px !important;
+    justify-content: flex-start !important;
+    align-self: auto !important;
+    margin: 0 !important;
+  }
+
+  #game-screen.speech-phase-active .speaker-card-prominent,
+  #game-screen.speech-phase-active .speaker-status-tag,
+  #game-screen.speech-phase-active .nomination-status-badge,
+  #game-screen.speech-phase-active .action-list-wrap {
+    margin-top: 0 !important;
+  }
+
+  #game-screen.speech-phase-active .speaker-card-prominent {
+    margin-right: auto !important;
+    margin-bottom: 0 !important;
+    margin-left: auto !important;
   }
 
   #skip-phase-btn,
