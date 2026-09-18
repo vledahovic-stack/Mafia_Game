@@ -2972,13 +2972,22 @@ ul.room-list-mock {
   }
 
   #game-screen.individual-speech-phase-active .game-panel-center {
+    display: flex !important;
     flex: 1 1 auto !important;
+    flex-direction: column !important;
     min-height: 0 !important;
-    height: auto !important;
+    height: 100% !important;
+    justify-content: flex-start !important;
   }
 
   #game-screen.individual-speech-phase-active .game-action-panel {
     flex: 0 0 auto !important;
+    margin: 0 !important;
+  }
+
+  #game-screen.individual-speech-phase-active .action-list-wrap {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
   }
 
   #game-screen.individual-speech-phase-active .game-bottom-controls {
