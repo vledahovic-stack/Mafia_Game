@@ -3006,6 +3006,13 @@ ul.room-list-mock {
     z-index: 100 !important;
   }
 
+  #game-screen.action-phase-active .game-panel-center,
+  #game-screen.action-phase-active .game-action-panel {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    justify-content: flex-start !important;
+  }
+
   #skip-phase-btn,
   #skip-night-btn,
   #end-game-btn {
