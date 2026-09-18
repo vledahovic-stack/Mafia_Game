@@ -3006,33 +3006,90 @@ ul.room-list-mock {
     z-index: 100 !important;
   }
 
+  /* Скрытие сетки стола и нижних кнопок в фазах действия (3, 3.5, 5), чтобы блок действий располагался сразу под шапкой фазы */
+  #game-screen.action-phase-active #players-grid,
+  #game-screen.action-phase-active .game-bottom-controls {
+    display: none !important;
+  }
+
   .action-phase-active .game-panel-center {
+    display: flex !important;
+    flex-direction: column !important;
     justify-content: flex-start !important;
+    align-items: stretch !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    gap: 0 !important;
   }
 
   #game-screen.action-phase-active #game-action-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    max-height: none !important;
+    max-height: calc(100% - 4px) !important;
     margin-top: 4px !important;
     margin-bottom: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
     overflow: hidden !important;
   }
 
   #game-screen.action-phase-active .action-list-wrap {
     display: flex !important;
     flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
     max-height: 100% !important;
     min-height: 0 !important;
+    flex: 1 1 auto !important;
+    flex-shrink: 1 !important;
+    margin: 0 !important;
+    gap: 6px !important;
     overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  #game-screen.action-phase-active .action-list-header {
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+  }
+
+  #game-screen.action-phase-active .action-list-warning {
+    flex-shrink: 0 !important;
+    margin: 0 !important;
   }
 
   #game-screen.action-phase-active .action-list {
+    display: flex !important;
+    flex-direction: column !important;
     flex: 1 1 auto !important;
+    width: 100% !important;
     max-height: 100% !important;
     min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    gap: 6px !important;
+    padding: 0 0 max(8px, env(safe-area-inset-bottom)) !important;
+    box-sizing: border-box !important;
+  }
+
+  #game-screen.action-phase-active .action-list-row {
+    flex-shrink: 0 !important;
+  }
+
+  #game-screen.action-phase-active .night-phase-container {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    margin: 0 !important;
   }
 
   #skip-phase-btn,

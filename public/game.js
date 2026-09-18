@@ -643,7 +643,7 @@ function renderGridContent(state) {
         const isHost = state.players.length > 0 && state.players[0].id === socket.id;
 
         const isSpeechPhase = (state.phase === 2 || state.phase === 2.5 || state.phase === 4);
-        const isVotingPhase = (state.phase === 3);
+        const isVotingPhase = (state.phase === 3 || state.phase === 3.5 || (Boolean(state.isTieBreaker) && state.phase >= 3 && state.phase < 4));
         const isNightPhase = (state.phase === 5);
         const isActionPhase = Boolean(state && (state.phase === 3 || state.phase === 3.5 || state.phase === 5 || (state.isTieBreaker && state.phase !== 1 && state.phase !== 2 && state.phase !== 2.5 && state.phase !== 4)));
         const actionPanel = document.getElementById('game-action-panel');
@@ -809,7 +809,7 @@ function renderGridContent(state) {
                 const myVote = state.votes ? (state.votes[myName] || state.votes[username]) : null;
                 const hasVoted = Boolean(myVote);
                 const alivePlayers = state.players.filter(p => p.isAlive !== false);
-                const isTieBreaker = Boolean(state.isTieBreaker);
+                const isTieBreaker = Boolean(state.isTieBreaker || state.phase === 3.5);
                 const candidates = state.votingCandidates || [];
                 const isDuelRevote = isTieBreaker && candidates.length === 2;
                 const isCandidateInDuel = isDuelRevote && (
