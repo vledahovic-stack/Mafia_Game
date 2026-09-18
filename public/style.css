@@ -2972,16 +2972,25 @@ ul.room-list-mock {
   }
 
   #game-screen.individual-speech-phase-active .game-panel-center {
+    display: flex !important;
     flex: 1 !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    margin-top: 0 !important;
     height: 100% !important;
     position: relative !important;
-    padding-bottom: 80px !important;
+  }
+
+  #game-screen.individual-speech-phase-active {
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
   }
 
   #game-screen.individual-speech-phase-active .game-action-panel,
   #game-screen.individual-speech-phase-active .speaker-card-prominent,
   #game-screen.individual-speech-phase-active .action-list-wrap {
     flex-grow: 0 !important;
+    flex-shrink: 0 !important;
     height: auto !important;
     margin-top: 0 !important;
   }
@@ -2992,12 +3001,15 @@ ul.room-list-mock {
   }
 
   #game-screen.individual-speech-phase-active .game-bottom-controls {
-    position: absolute !important;
-    bottom: 12px !important;
-    left: 0 !important;
-    right: 0 !important;
+    position: static !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
     width: 100% !important;
-    margin: 0 auto !important;
+    margin-top: auto !important;
+    margin-right: auto !important;
+    margin-bottom: 0 !important;
+    margin-left: auto !important;
   }
 
   #skip-phase-btn,
