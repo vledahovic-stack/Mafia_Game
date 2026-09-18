@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель владельца</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="app">
+    <header>
+        <h3 class="section-title admin-header-title">🎩 Панель владельца</h3>
+        <button onclick="window.location.href='/profile.html'" class="admin-back-btn">Назад</button>
+    </header>
+    <hr>
+
+    <div class="form-group">
+        <label for="admin-user-id">ID пользователя:</label>
+        <input type="number" id="admin-user-id" placeholder="Введите ID">
+    </div>
+
+    <div class="form-group">
+        <label for="admin-amount">Сумма начисления:</label>
+        <input type="number" id="admin-amount" placeholder="Введите сумму">
+    </div>
+
+    <button onclick="addBalance()">Начислить валюту</button>
+
+    <hr class="admin-hr">
+
+    <h3 class="admin-chest-title">🎁 Настройка приветственного сундука</h3>
+
+    <div class="form-group form-row">
+        <input type="checkbox" id="welcome-coins-enabled" class="form-checkbox" checked>
+        <label for="welcome-coins-enabled">Монеты:</label>
+        <input type="number" id="welcome-coins-qty" class="form-input-sm" value="500" min="0">
+    </div>
+
+    <div class="form-group form-row">
+        <input type="checkbox" id="welcome-role_card-enabled" class="form-checkbox">
+        <label for="welcome-role_card-enabled">Карточка выбора роли:</label>
+        <input type="number" id="welcome-role_card-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <div class="form-group form-row">
+        <input type="checkbox" id="welcome-chest_bronze-enabled" class="form-checkbox" checked>
+        <label for="welcome-chest_bronze-enabled">Бронзовый сундук:</label>
+        <input type="number" id="welcome-chest_bronze-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <div class="form-group form-row">
+        <input type="checkbox" id="welcome-chest_silver-enabled" class="form-checkbox" checked>
+        <label for="welcome-chest_silver-enabled">Серебряный сундук:</label>
+        <input type="number" id="welcome-chest_silver-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <div class="form-group form-row">
+        <input type="checkbox" id="welcome-chest_gold-enabled" class="form-checkbox" checked>
+        <label for="welcome-chest_gold-enabled">Золотой сундук:</label>
+        <input type="number" id="welcome-chest_gold-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <button id="btn-save-welcome-chest">Сохранить настройки сундука</button>
+	
+	<div class="admin-card">
+    <h3>Управление кастомным сундуком (рассылка / выдача)</h3>
+    <p>Настройте содержимое сундука аналогично приветственному, затем укажите ID игрока или оставьте поле пустым для отправки всем.</p>
+
+    <!-- Монеты -->
+    <div class="form-group form-row">
+        <input type="checkbox" id="custom-coins-enabled" class="form-checkbox" checked>
+        <label for="custom-coins-enabled">Монеты:</label>
+        <input type="number" id="custom-coins-qty" class="form-input-sm" value="100" min="1">
+    </div>
+
+    <!-- Карточка роли -->
+    <div class="form-group form-row">
+        <input type="checkbox" id="custom-role_card-enabled" class="form-checkbox" checked>
+        <label for="custom-role_card-enabled">Карточка выбора роли:</label>
+        <input type="number" id="custom-role_card-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <!-- Бронзовый сундук -->
+    <div class="form-group form-row">
+        <input type="checkbox" id="custom-chest_bronze-enabled" class="form-checkbox" checked>
+        <label for="custom-chest_bronze-enabled">Бронзовый сундук:</label>
+        <input type="number" id="custom-chest_bronze-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <!-- Серебряный сундук -->
+    <div class="form-group form-row">
+        <input type="checkbox" id="custom-chest_silver-enabled" class="form-checkbox" checked>
+        <label for="custom-chest_silver-enabled">Серебряный сундук:</label>
+        <input type="number" id="custom-chest_silver-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <!-- Золотой сундук -->
+    <div class="form-group form-row">
+        <input type="checkbox" id="custom-chest_gold-enabled" class="form-checkbox" checked>
+        <label for="custom-chest_gold-enabled">Золотой сундук:</label>
+        <input type="number" id="custom-chest_gold-qty" class="form-input-sm" value="1" min="1">
+    </div>
+
+    <hr class="admin-hr">
+
+    <!-- Выбор получателя и кнопка отправки -->
+    <div class="admin-send-row">
+        <input type="text" id="custom-target-userid" class="admin-target-input" placeholder="ID игрока (оставьте пустым для всех)">
+        <button id="btn-send-custom-chest" class="admin-send-btn">Отправить сундук</button>
+    </div>
+</div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

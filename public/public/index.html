@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mafia Online - Главная</title>
+    <!-- Анти-мерцание: синхронно активируем сохраненную вкладку до первого рендера -->
+    <script>
+        (function() {
+            var TABS = ['lobby', 'profile', 'shop', 'stats', 'settings'];
+            var saved;
+            try { saved = localStorage.getItem('activeLobbyTab'); } catch(e) {}
+            var active = (saved && TABS.indexOf(saved) !== -1) ? saved : 'lobby';
+            document.documentElement.classList.add('tab-active-' + active, 'tab-ready');
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css">
+	<link rel="manifest" href="/manifest.json">
+</head>
+<body>
+
+<div id="app" class="lobby-container">
+    <!-- Шапка сайта -->
+    <header>
+        <h1 class="dancing-title">
+            <span class="char c-1">М</span>
+            <span class="char c-2 has-hat">А</span>
+            <span class="char c-3 has-tie">Ф</span>
+            <span class="char c-4 has-glasses">И</span>
+            <span class="char c-5">Я</span>
+            <span class="title-spacer"></span>
+            <span class="char c-6 has-cigar">К</span>
+            <span class="char c-7">Л</span>
+            <span class="char c-8">У</span>
+            <span class="char c-9 has-rose">Б</span>
+        </h1>
+        <div id="user-block">
+            <span id="user-balance">💰 <span id="balance-value">0</span></span>
+            <button id="btn-daily-bonus" onclick="claimDailyBonus()">🎁 Бонус</button>
+            <button id="btn-auth" onclick="openModal('modal-auth')">Авторизация</button>
+            <button id="btn-logout">Выйти</button>
+            <button id="mobile-menu-btn" class="mobile-hamburger-btn" type="button" aria-label="Меню" onclick="toggleMobileMenu(event)">☰</button>
+        </div>
+    </header>
+
+    <!-- Выпадающее гамбургер-меню для мобильной версии -->
+    <div id="mobile-dropdown-menu" class="mobile-dropdown-menu">
+        <button id="mobile-btn-bonus" class="mobile-menu-item mobile-menu-item--bonus" style="display: none;" onclick="claimDailyBonus(); closeMobileMenu();">🎁 Получить бонус</button>
+        <div id="mobile-menu-divider-bonus" class="mobile-menu-divider" style="display: none;"></div>
+
+        <button id="mobile-nav-btn-lobby" class="mobile-menu-item" onclick="switchMobileTab('lobby')">🏠 Лобби</button>
+        <button id="mobile-nav-btn-profile" class="mobile-menu-item" onclick="switchMobileTab('profile')">👤 Профиль</button>
+        <button id="mobile-nav-btn-shop" class="mobile-menu-item" onclick="switchMobileTab('shop')">🍕 Магазин</button>
+        <button id="mobile-nav-btn-stats" class="mobile-menu-item" onclick="switchMobileTab('stats')">🏆 Статистика</button>
+        <button id="mobile-nav-btn-settings" class="mobile-menu-item" onclick="switchMobileTab('settings')">⚙️ Настройки</button>
+        <button id="mobile-nav-btn-admin" class="mobile-menu-item btn-admin-panel" style="display: none;" onclick="window.location.href='/admin.html'">🎩 Панель админа</button>
+
+        <div class="mobile-menu-divider"></div>
+        <button id="mobile-btn-reload" class="mobile-menu-item mobile-menu-item--reload" onclick="hardReloadApp()">🔄 Обновить приложение</button>
+
+        <div id="mobile-menu-divider-logout" class="mobile-menu-divider" style="display: none;"></div>
+        <button id="mobile-btn-logout" class="mobile-menu-item mobile-menu-item--logout" style="display: none;" onclick="handleLogout()">🚪 Выйти</button>
+    </div>
+    <div id="mobile-menu-backdrop" class="mobile-menu-backdrop" onclick="closeMobileMenu()"></div>
+
+    <!-- Двухколоночный макет под шапкой на ПК / Поточный на мобильных -->
+    <div class="lobby-content-wrapper">
+        <!-- Левая панель навигации -->
+        <aside class="lobby-nav-sidebar">
+            <nav id="lobby-nav">
+                <button id="nav-btn-lobby" onclick="switchLobbyTab('lobby')">🏠 Лобби</button>
+                <button id="nav-btn-profile" onclick="switchLobbyTab('profile')">👤 Профиль</button>
+                <button id="nav-btn-shop" onclick="switchLobbyTab('shop')">🍕 Магазин</button>
+                <button id="nav-btn-stats" onclick="switchLobbyTab('stats')">🏆 Статистика</button>
+                <button id="nav-btn-settings" onclick="switchLobbyTab('settings')">⚙️ Настройки</button>
+                <button id="btn-admin-panel" class="btn-admin-panel" onclick="window.location.href='/admin.html'">🎩 Панель админа</button>
+            </nav>
+            <div class="lobby-sidebar-footer">
+                <span class="online-counter-label"><span class="pulse-dot">●</span> <span id="online-counter">В онлайне: 0</span></span>
+            </div>
+        </aside>
+
+        <!-- Правая рабочая зона -->
+        <main class="lobby-main-area">
+            <!-- 1. Вкладка: Лобби -->
+            <section id="tab-lobby" class="lobby-tab-section">
+                <!-- Смешной баннер "Правило дня" -->
+                <div class="funny-banner">
+                    🍕 Правило дня: Мафия не стреляет, пока не доест пиццу!
+                </div>
+
+                <!-- Секция создания комнаты -->
+                <div class="lobby-create-section">
+                    <button class="btn-create-room">➕ Собрать свою банду</button>
+                </div>
+
+                <!-- Список игровых столов -->
+                <div class="lobby-rooms-section">
+                    <div class="section-title">
+                        <span>Доступные комнаты</span>
+                    </div>
+                    <ul id="rooms-list" class="room-list-mock">
+                        <li class="room-card waiting">
+                            <div class="room-info">
+                                <div class="room-header">
+                                    <span class="room-title">Мирные с пончиками</span>
+                                    <span class="badge-status status-waiting">Ждём</span>
+                                </div>
+                                <div class="room-details">
+                                    <span>👥 6/10</span>
+                                    <span>🎭 Классика</span>
+                                </div>
+                            </div>
+                            <div class="room-actions">
+                                <button class="btn-join active-btn">Заскочить</button>
+                            </div>
+                        </li>
+
+                        <li class="room-card playing">
+                            <div class="room-info">
+                                <div class="room-header">
+                                    <span class="room-title">Острые Козырьки</span>
+                                    <span class="badge-status status-playing">Перестрелка</span>
+                                </div>
+                                <div class="room-details">
+                                    <span>👥 10/10</span>
+                                    <span>🩸 С Донами</span>
+                                </div>
+                            </div>
+                            <div class="room-actions">
+                                <button class="btn-join" disabled>Смотреть</button>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 2. Вкладка: Профиль -->
+            <section id="tab-profile" class="lobby-tab-section">
+                <div class="section-title">
+                    <span>👤 Личное дело игрока</span>
+                </div>
+                <div class="profile-card">
+                    <p class="profile-field"><strong>Позывной:</strong> <span id="tab-profile-username" class="profile-username-val">Гость</span></p>
+                    <p class="profile-field"><strong>ID в базе:</strong> <span id="tab-profile-id" class="profile-id-val">—</span></p>
+                    <p class="profile-field"><strong>Общак (Баланс):</strong> <span id="tab-profile-balance">0</span> 💰</p>
+                    
+                    <div class="profile-xp-section">
+                        <div class="profile-xp-header">
+                            <strong>⭐ Авторитет: <span id="tab-profile-level" class="profile-level-val">1 ур.</span></strong>
+                            <span id="tab-profile-xp-text" class="profile-xp-text">0 / 10 XP</span>
+                        </div>
+                        <div class="xp-bar-container">
+                            <div id="tab-profile-xp-bar" class="xp-bar-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
+                        <button class="btn-secondary" onclick="window.location.href='profile.html'" style="flex: 1; padding: 10px;">Открыть полный профиль & инвентарь ↗</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Вкладка: Магазин -->
+            <section id="tab-shop" class="lobby-tab-section">
+                <div class="section-title">
+                    <span>🍕 Подпольный магазин</span>
+                </div>
+                <div class="lobby-shop-grid">
+                    <!-- 1: Бронзовый сундук -->
+                    <div class="lobby-shop-card shop-card--bronze">
+                        <div class="shop-card-icon">🥉</div>
+                        <div class="shop-card-title">Бронзовый сундук</div>
+                        <div class="shop-card-desc">Базовые награды для новичка</div>
+                        <div class="shop-card-price">100 💰</div>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'chest_bronze')">Купить</button>
+                    </div>
+
+                    <!-- 2: Серебряный сундук -->
+                    <div class="lobby-shop-card shop-card--silver">
+                        <div class="shop-card-icon">🥈</div>
+                        <div class="shop-card-title">Серебряный сундук</div>
+                        <div class="shop-card-desc">Улучшенные награды и бонусы</div>
+                        <div class="shop-card-price">250 💰</div>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'chest_silver')">Купить</button>
+                    </div>
+
+                    <!-- 3: Золотой сундук -->
+                    <div class="lobby-shop-card shop-card--gold">
+                        <div class="shop-card-icon">🥇</div>
+                        <div class="shop-card-title">Золотой сундук</div>
+                        <div class="shop-card-desc">Ценные призы и редкие карточки</div>
+                        <div class="shop-card-price">500 💰</div>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'chest_gold')">Купить</button>
+                    </div>
+
+                    <!-- 4: Карточка выбора роли -->
+                    <div class="lobby-shop-card shop-card--role">
+                        <div class="shop-card-icon">🃏</div>
+                        <div class="shop-card-title">Карточка выбора роли</div>
+                        <div class="shop-card-desc">Гарантирует выбор желаемой роли</div>
+                        <div class="shop-card-price">500 💰</div>
+                        <button type="button" class="btn-gold shop-card-btn" onclick="buyDesktopShopItem(event, 'role_card')">Купить</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Вкладка: Статистика -->
+            <section id="tab-stats" class="lobby-tab-section">
+                <div class="section-title">
+                    <span>🏆 Статистика и Рейтинг</span>
+                </div>
+                <div class="profile-card" style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <div style="background: var(--bg-card-2); padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--clr-border); text-align: center;">
+                            <div style="font-size: 11px; color: var(--clr-muted);">Сыграно матчей</div>
+                            <div id="stats-total-games" style="font-size: 1.3rem; font-weight: 900; color: var(--clr-teal);">0</div>
+                        </div>
+                        <div style="background: var(--bg-card-2); padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--clr-border); text-align: center;">
+                            <div style="font-size: 11px; color: var(--clr-muted);">Процент побед</div>
+                            <div id="stats-winrate" style="font-size: 1.3rem; font-weight: 900; color: var(--clr-gold);">—</div>
+                        </div>
+                        <div style="background: var(--bg-card-2); padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--clr-border); text-align: center;">
+                            <div style="font-size: 11px; color: var(--clr-muted);">Побед за Мафию</div>
+                            <div id="stats-mafia-wins" style="font-size: 1.3rem; font-weight: 900; color: var(--clr-red);">0</div>
+                        </div>
+                        <div style="background: var(--bg-card-2); padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--clr-border); text-align: center;">
+                            <div style="font-size: 11px; color: var(--clr-muted);">Побед за Мирных</div>
+                            <div id="stats-peace-wins" style="font-size: 1.3rem; font-weight: 900; color: var(--clr-blue);">0</div>
+                        </div>
+                    </div>
+                    <div style="padding: 10px; background: rgba(255,209,102,0.08); border: 1px dashed var(--clr-gold); border-radius: var(--r-sm); text-align: center; font-size: 12px; color: var(--clr-gold);">
+                        🎖️ Ваш статус в синдикате: <strong>Уважаемый гангстер</strong>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Вкладка: Настройки -->
+            <section id="tab-settings" class="lobby-tab-section">
+                <div class="section-title">
+                    <span>⚙️ Настройки игры</span>
+                </div>
+                <div class="profile-card" style="display: flex; flex-direction: column; gap: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 700;">🔊 Звуковые эффекты</div>
+                            <div style="font-size: 12px; color: var(--clr-muted);">Звуки таймера, выстрелов и оповещений</div>
+                        </div>
+                        <input type="checkbox" id="setting-sound-toggle" checked style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--clr-teal);">
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid var(--clr-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 700;">🎙️ Голосовой чат (WebRTC)</div>
+                            <div style="font-size: 12px; color: var(--clr-muted);">Автоматически подключать микрофон в игре</div>
+                        </div>
+                        <input type="checkbox" id="setting-voice-toggle" checked style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--clr-teal);">
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid var(--clr-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 700;">🎨 Тема оформления</div>
+                            <div style="font-size: 12px; color: var(--clr-muted);">Стиль интерфейса игрового стола</div>
+                        </div>
+                        <select style="background: var(--bg-card-2); color: #fff; border: 1px solid var(--clr-border); border-radius: var(--r-sm); padding: 6px 10px;">
+                            <option value="noir">🌙 Тёмный нуар (Классика)</option>
+                            <option value="neon">⚡ Неоновый клуб</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<!-- Объединенное модальное окно Авторизации -->
+<div id="modal-auth" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('modal-auth')">&times;</span>
+        
+        <!-- Переключатель вкладок -->
+        <div class="auth-tabs">
+            <button id="tab-btn-login" class="auth-tab-btn active" onclick="switchAuthTab('login')">Вход</button>
+            <button id="tab-btn-register" class="auth-tab-btn" onclick="switchAuthTab('register')">Регистрация</button>
+        </div>
+
+        <!-- Контент входа -->
+        <div id="auth-login-content" class="auth-tab-content">
+            <h3>🕵️ Предъявите документы</h3>
+            <form id="form-login">
+                <input type="email" placeholder="E-mail" required>
+                <input type="password" placeholder="Пароль" required>
+                <button type="submit">Пройти контроль</button>
+            </form>
+        </div>
+
+        <!-- Контент регистрации -->
+        <div id="auth-register-content" class="auth-tab-content">
+            <h3>🤝 Вступить в сообщество</h3>
+            <form id="form-register">
+                <input type="email" placeholder="Введите e-mail" required>
+                <input type="password" placeholder="Придумайте пароль" required>
+                <button type="submit">Принести присягу</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="welcome-chest-modal" class="modal">
+    <div class="modal-content">
+        <h3>🎁 Сундук новичка</h3>
+        <p class="modal-desc">Заберите ваш приветственный бонус!</p>
+        <button id="btn-claim-welcome-chest">Получить</button>
+    </div>
+</div>
+
+<!-- Клиентский скрипт Socket.IO -->
+<script src="/socket.io/socket.io.js"></script>
+<!-- Скрипт для главной страницы -->
+<script src="index.js"></script>
+</body>
+</html>
