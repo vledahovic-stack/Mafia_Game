@@ -89,6 +89,13 @@ function sanitizeRoom(room) {
     return sanitized;
 }
 
+// Оповещение всех клиентов в лобби об актуальном списке комнат
+function broadcastRooms() {
+    if (io) {
+        io.emit('update_rooms', Object.values(rooms).map(sanitizeRoom));
+    }
+}
+
 // Вспомогательная функция: очищает gameState от таймеров перед socket.emit
 function sanitizeGameState(gs) {
     if (!gs) return gs;
@@ -300,6 +307,7 @@ app.post('/api/rooms/create', (req, res) => {
         settings: getDefaultSettings(),
         gameLog: []
     };
+    broadcastRooms();
     res.json({ success: true, roomId });
 });
 
@@ -784,6 +792,7 @@ io.on('connection', (socket) => {
         }
 
         io.to(roomId).emit('updatePlayers', room.players);
+        broadcastRooms();
 
         socket.emit('room-joined');
         socket.to(roomId).emit('user-joined', { userId: socket.id });
@@ -892,6 +901,7 @@ io.on('connection', (socket) => {
                     io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
                 }
             }
+            broadcastRooms();
         }
     });
 
@@ -914,6 +924,7 @@ io.on('connection', (socket) => {
                     room.gameState.players = room.players;
                     io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
                 }
+                broadcastRooms();
             }
         }
     });
@@ -935,6 +946,7 @@ io.on('connection', (socket) => {
             room.status = 'playing';
             room.gameLog = [];
             io.to(roomId).emit('gameStarted');
+            broadcastRooms();
             startGame(room, io);
         }
     });
@@ -947,6 +959,7 @@ io.on('connection', (socket) => {
             room.gameState = null;
             io.to(roomId).emit('gameEnded');
             io.to(roomId).emit('updatePlayers', room.players);
+            broadcastRooms();
         }
     });
 
@@ -1105,6 +1118,7 @@ io.on('connection', (socket) => {
                     io.to(roomId).emit('gameStateUpdate', sanitizeGameState(room.gameState));
                 }
             }
+            broadcastRooms();
         }
     });
 });
