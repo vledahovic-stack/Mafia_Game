@@ -634,14 +634,15 @@ function renderGridContent(state) {
         const isSpeechPhase = (state.phase === 2 || state.phase === 2.5 || state.phase === 4);
         const isVotingPhase = (state.phase === 3);
         const isNightPhase = (state.phase === 5);
+        const isActionPhase = (state.phase === 3 || state.phase === 3.5 || state.phase === 5 || Boolean(state.isTieBreaker));
         const actionPanel = document.getElementById('game-action-panel');
         const centerPanel = document.querySelector('.game-panel-center');
 
         if (gameScreen) gameScreen.classList.toggle('speech-phase-active', isSpeechPhase);
         if (gameScreen) gameScreen.classList.toggle('individual-speech-phase-active', state.phase === 2 || state.phase === 2.5);
+        if (gameScreen) gameScreen.classList.toggle('action-phase-active', isActionPhase);
         if (centerPanel) centerPanel.classList.toggle('speech-phase-active', isSpeechPhase);
         if (actionPanel) actionPanel.classList.toggle('speech-phase-active', isSpeechPhase);
-        if (actionPanel) actionPanel.classList.toggle('action-phase-active', state.phase === 3 || state.phase === 3.5 || state.phase === 5);
 
         // ─── Полная очистка состояния обоих экранов перед рендером новой фазы ───
         playersGrid.innerHTML = '';
