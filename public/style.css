@@ -2953,6 +2953,18 @@ ul.room-list-mock {
     margin-left: auto !important;
   }
 
+  #game-screen.individual-speech-phase-active .speaker-player-header-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  #game-screen.individual-speech-phase-active .speaker-player-name {
+    width: auto !important;
+  }
+
   #skip-phase-btn,
   #skip-night-btn,
   #end-game-btn {
