@@ -2972,6 +2972,8 @@ ul.room-list-mock {
   }
 
   #game-screen.individual-speech-phase-active .game-panel-center {
+    flex: 1 !important;
+    height: 100% !important;
     position: relative !important;
     padding-bottom: 80px !important;
   }
