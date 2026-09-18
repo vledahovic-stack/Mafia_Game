@@ -639,9 +639,7 @@ function renderGridContent(state) {
 
         if (gameScreen) gameScreen.classList.toggle('speech-phase-active', isSpeechPhase);
         if (gameScreen) gameScreen.classList.toggle('individual-speech-phase-active', state.phase === 2 || state.phase === 2.5);
-        if (gameScreen) gameScreen.classList.toggle('action-phase-active', state.phase === 3 || state.phase === 3.5 || state.phase === 5);
         if (centerPanel) centerPanel.classList.toggle('speech-phase-active', isSpeechPhase);
-        if (centerPanel) centerPanel.classList.toggle('action-phase-active', state.phase === 3 || state.phase === 3.5 || state.phase === 5);
         if (actionPanel) actionPanel.classList.toggle('speech-phase-active', isSpeechPhase);
         if (actionPanel) actionPanel.classList.toggle('action-phase-active', state.phase === 3 || state.phase === 3.5 || state.phase === 5);
 
