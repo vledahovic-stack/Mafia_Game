@@ -3006,14 +3006,12 @@ ul.room-list-mock {
     z-index: 100 !important;
   }
 
-  .action-phase-active .game-panel-center {
-    justify-content: flex-start !important;
-  }
-
-  .action-phase-active #game-action-panel {
-    flex: 0 0 auto !important;
-    margin-top: 0 !important;
+  #game-screen.action-phase-active #game-action-panel {
+    margin-top: 4px !important;
     margin-bottom: auto !important;
+    flex: 0 1 auto !important;
+    max-height: calc(100dvh - 160px) !important;
+    overflow-y: auto !important;
   }
 
   #skip-phase-btn,
