@@ -2919,6 +2919,10 @@ ul.room-list-mock {
     width: 100% !important;
   }
 
+  #game-screen.individual-speech-phase-active .game-action-panel {
+    padding-top: 4px !important;
+  }
+
   #game-screen.speech-phase-active .speaker-player-header-row,
   #game-screen.speech-phase-active .speaker-card-prominent,
   #game-screen.speech-phase-active .speaker-status-tag,
@@ -2930,6 +2934,10 @@ ul.room-list-mock {
     margin-top: 0 !important;
     margin-bottom: auto !important;
     flex: 0 0 auto !important;
+  }
+
+  #game-screen.individual-speech-phase-active .action-list-wrap {
+    margin-top: 4px !important;
   }
 
   #game-screen.speech-phase-active .speaker-card-prominent,
