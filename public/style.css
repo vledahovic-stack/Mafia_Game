@@ -2971,30 +2971,6 @@ ul.room-list-mock {
     flex-grow: 0 !important;
   }
 
-  #game-screen.individual-speech-phase-active .game-panel-center {
-    display: flex !important;
-    flex: 1 1 auto !important;
-    flex-direction: column !important;
-    min-height: 0 !important;
-    height: 100% !important;
-    justify-content: flex-start !important;
-  }
-
-  #game-screen.individual-speech-phase-active .game-action-panel {
-    flex: 0 0 auto !important;
-    margin: 0 !important;
-  }
-
-  #game-screen.individual-speech-phase-active .action-list-wrap {
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-  }
-
-  #game-screen.individual-speech-phase-active .game-bottom-controls {
-    margin-top: auto !important;
-    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
-  }
-
   #skip-phase-btn,
   #skip-night-btn,
   #end-game-btn {
