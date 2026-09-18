@@ -2791,6 +2791,14 @@ ul.room-list-mock {
     white-space: nowrap !important;
   }
 
+  #game-screen.individual-speech-phase-active .speaker-player-name {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+    margin: 0 auto !important;
+    align-self: center !important;
+  }
+
   .speaker-card-prominent {
     display: flex !important;
     flex-direction: column !important;
