@@ -2973,17 +2973,10 @@ ul.room-list-mock {
 
   #game-screen.individual-speech-phase-active .game-panel-center {
     position: relative !important;
-    margin-top: 0 !important;
-    justify-content: flex-start !important;
-    padding-bottom: 90px !important;
+    padding-bottom: 80px !important;
   }
 
-  #game-screen.individual-speech-phase-active .game-action-panel {
-    margin-top: 0 !important;
-    justify-content: flex-start !important;
-    padding-bottom: 90px !important;
-  }
-
+  #game-screen.individual-speech-phase-active .game-action-panel,
   #game-screen.individual-speech-phase-active .speaker-card-prominent,
   #game-screen.individual-speech-phase-active .action-list-wrap {
     flex-grow: 0 !important;
@@ -2997,20 +2990,12 @@ ul.room-list-mock {
   }
 
   #game-screen.individual-speech-phase-active .game-bottom-controls {
-    position: fixed !important;
-    bottom: 16px !important;
+    position: absolute !important;
+    bottom: 12px !important;
     left: 0 !important;
     right: 0 !important;
-    width: calc(100% - 32px) !important;
+    width: 100% !important;
     margin: 0 auto !important;
-    z-index: 100 !important;
-  }
-
-  #game-screen.action-phase-active .game-panel-center,
-  #game-screen.action-phase-active .game-action-panel {
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    justify-content: flex-start !important;
   }
 
   #skip-phase-btn,
