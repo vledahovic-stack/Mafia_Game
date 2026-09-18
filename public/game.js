@@ -91,7 +91,10 @@ function switchToGameScreen() {
 
 function switchToLobbyScreen() {
     if (lobbyScreen) lobbyScreen.style.display = 'block';
-    if (gameScreen) gameScreen.style.display = 'none';
+    if (gameScreen) {
+        gameScreen.style.display = 'none';
+        gameScreen.classList.remove('action-phase-active');
+    }
 
     const roleCardBlock = document.getElementById('role-card-block');
     if (roleCardBlock) {
@@ -503,6 +506,7 @@ socket.on('gameStateUpdate', (state) => {
     const isGameActive = state.phase && (state.phase === 0.5 || (state.phase >= 1 && state.phase <= 5));
 
     if (state.phase === 6) {
+        if (gameScreen) gameScreen.classList.remove('action-phase-active');
         if (sessionStorage.getItem('game_closed_' + roomId) === 'true') {
             switchToLobbyScreen();
             return;
@@ -514,11 +518,17 @@ socket.on('gameStateUpdate', (state) => {
     }
 
     if (!isGameActive) {
+        if (gameScreen) gameScreen.classList.remove('action-phase-active');
         switchToLobbyScreen();
         return;
     }
 
     switchToGameScreen();
+
+    const isActionPhase = Boolean(state && (state.phase === 3 || state.phase === 3.5 || state.phase === 5 || (state.isTieBreaker && state.phase !== 1 && state.phase !== 2 && state.phase !== 2.5 && state.phase !== 4)));
+    if (gameScreen) {
+        gameScreen.classList.toggle('action-phase-active', isActionPhase);
+    }
 
     // ─── Обновляем центральный динамический баннер и таймер на каждом тике сокета ───
     updateCentralPhaseBanner(state);
@@ -539,6 +549,7 @@ socket.on('gameStateUpdate', (state) => {
 
     const stateCompareCopy = {
         phase: state.phase,
+        isTieBreaker: Boolean(state.isTieBreaker),
         currentSpeaker: state.currentSpeaker,
         speakerNominations: state.speakerNominations,
         votes: state.votes,
@@ -634,7 +645,7 @@ function renderGridContent(state) {
         const isSpeechPhase = (state.phase === 2 || state.phase === 2.5 || state.phase === 4);
         const isVotingPhase = (state.phase === 3);
         const isNightPhase = (state.phase === 5);
-        const isActionPhase = (state.phase === 3 || state.phase === 3.5 || state.phase === 5 || Boolean(state.isTieBreaker));
+        const isActionPhase = Boolean(state && (state.phase === 3 || state.phase === 3.5 || state.phase === 5 || (state.isTieBreaker && state.phase !== 1 && state.phase !== 2 && state.phase !== 2.5 && state.phase !== 4)));
         const actionPanel = document.getElementById('game-action-panel');
         const centerPanel = document.querySelector('.game-panel-center');
 
@@ -1193,6 +1204,10 @@ function renderGameLog(logs) {
 }
 
 function showGameOverModal(winner, players) {
+    if (gameScreen) {
+        gameScreen.classList.remove('action-phase-active');
+    }
+
     if (sessionStorage.getItem('game_closed_' + roomId) === 'true') {
         switchToLobbyScreen();
         return;
