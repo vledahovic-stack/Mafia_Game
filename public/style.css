@@ -2971,6 +2971,21 @@ ul.room-list-mock {
     flex-grow: 0 !important;
   }
 
+  #game-screen.individual-speech-phase-active .game-panel-center {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  #game-screen.individual-speech-phase-active .game-action-panel {
+    flex: 0 0 auto !important;
+  }
+
+  #game-screen.individual-speech-phase-active .game-bottom-controls {
+    margin-top: auto !important;
+    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  }
+
   #skip-phase-btn,
   #skip-night-btn,
   #end-game-btn {
