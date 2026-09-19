@@ -2700,20 +2700,36 @@ ul.room-list-mock {
     align-items: center !important;
   }
 
-  /* Сетка участников 3х4 (3 в ряд, 4 в столбик) */
+  /* Сетка участников мобильной версии (динамически 2 или 3 колонки, до 4 строк) */
   #players-grid.table-players-grid {
     display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    grid-template-rows: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(0, 1fr) !important;
+    grid-template-rows: none !important;
     gap: 4px !important;
     width: 100% !important;
-    flex: 1 !important;
+    flex: 1 1 0% !important;
     min-height: 0 !important;
     max-height: 100% !important;
     overflow: hidden !important;
     margin: 0 !important;
     align-content: stretch !important;
     box-sizing: border-box !important;
+  }
+
+  /* До 8 человек включительно — 2 колонки */
+  #players-grid.table-players-grid.grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Более 8 человек — 3 колонки */
+  #players-grid.table-players-grid.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  /* Скрытие пустых мест на мобильном устройстве */
+  .table-players-grid .player-card.empty-slot {
+    display: none !important;
   }
 
   .table-players-grid .player-card {
@@ -2735,10 +2751,25 @@ ul.room-list-mock {
   }
 
   .table-players-grid .player-card .card-audio-btn {
-    padding: 1px 4px !important;
+    padding: 1px 6px !important;
     font-size: 0.68rem !important;
     margin: 1px 0 0 0 !important;
     border-radius: 4px !important;
+  }
+
+  /* Нижняя панель с кнопками на мобильном */
+  .game-bottom-controls,
+  #game-controls {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 2px 0 0 0 !important;
+    margin: 0 !important;
+    border-top: none !important;
+    background: transparent !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
   }
 
   /* Панель действий в фазах речи, голосования и ночи */
@@ -3092,10 +3123,46 @@ ul.room-list-mock {
     margin: 0 !important;
   }
 
-  #skip-phase-btn,
   #skip-night-btn,
   #end-game-btn {
     display: none !important;
+  }
+
+  #skip-phase-btn {
+    position: static !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    margin-left: auto !important;
+    align-self: flex-end !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 16px !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    border-radius: var(--r-sm) !important;
+    box-shadow: 0 4px 14px rgba(243, 156, 18, 0.35) !important;
+    cursor: pointer !important;
+    background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(243, 156, 18, 0.5) !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    transition: transform var(--t), opacity var(--t), filter var(--t) !important;
+  }
+
+  #skip-phase-btn:active {
+    transform: scale(0.97) !important;
+    filter: brightness(0.9) !important;
+  }
+
+  #skip-phase-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    filter: grayscale(0.5) !important;
+    box-shadow: none !important;
   }
 
   #finish-speech-btn {

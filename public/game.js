@@ -498,7 +498,10 @@ function updateCentralPhaseBanner(state) {
     `;
 }
 
+let latestGameState = null;
+
 socket.on('gameStateUpdate', (state) => {
+    latestGameState = state;
     if (state.settings) {
         currentSettings = state.settings;
     }
@@ -1083,15 +1086,25 @@ function renderGridContent(state) {
                 }
             }
         } else {
-            // ─── ДРУГИЕ ФАЗЫ (1, 0.5): Сетка 4×3 отображается ───
+            // ─── ДРУГИЕ ФАЗЫ (1, 0.5): Сетка отображается ───
             playersGrid.classList.remove('hidden');
             playersGrid.style.display = 'grid';
             playersGrid.className = 'table-players-grid grid-mode';
+
+            const playerCount = (state.players || []).length;
+            playersGrid.classList.toggle('grid-cols-2', playerCount <= 8);
+            playersGrid.classList.toggle('grid-cols-3', playerCount > 8);
+            playersGrid.dataset.playerCount = playerCount;
+
             playersGrid.innerHTML = '';
 
-            const TOTAL_SLOTS = 12;
+            const isMobile = window.innerWidth <= 768;
+            const TOTAL_SLOTS = isMobile ? playerCount : 12;
+
             for (let i = 0; i < TOTAL_SLOTS; i++) {
                 const player = state.players[i];
+                if (!player && isMobile) continue; // На мобильных отображаются только реально занятые места
+
                 const card = document.createElement('div');
 
                 if (player) {
@@ -1118,9 +1131,9 @@ function renderGridContent(state) {
                     const audioBtn = createAudioButton(player, socket.id);
 
                     card.innerHTML = `
-                        <div style="font-size:0.78rem;font-weight:800;color:var(--clr-muted);opacity:0.7;">#${i + 1}</div>
-                        <div style="font-size:0.88rem;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${pName}">${pName}${isMe ? ' (Вы)' : ''}</div>
-                        <div style="font-size:0.75rem;color:${statusColor};">${statusText}</div>
+                        <div style="font-size:0.75rem;font-weight:800;color:var(--clr-muted);opacity:0.7;">#${i + 1}</div>
+                        <div style="font-size:0.86rem;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${pName}">${pName}${isMe ? ' (Вы)' : ''}</div>
+                        <div style="font-size:0.72rem;color:${statusColor};">${statusText}</div>
                     `;
                     card.appendChild(audioBtn);
 
@@ -1137,7 +1150,7 @@ function renderGridContent(state) {
                         });
                     }
                 } else {
-                    card.className = 'player-card';
+                    card.className = 'player-card empty-slot';
                     card.style.opacity = '0.35';
                     card.style.cursor = 'default';
                     card.innerHTML = `
@@ -1727,3 +1740,9 @@ document.addEventListener('touchstart', function(e) {
         e.preventDefault();
     }
 }, { passive: false });
+
+window.addEventListener('resize', () => {
+    if (latestGameState && typeof renderGridContent === 'function') {
+        renderGridContent(latestGameState);
+    }
+});
