@@ -3,6 +3,11 @@ export const AudioModule = {
   peerConnections: {},
   iceCandidateQueues: {}, // Буфер для ранних ICE-кандидатов
 
+  serverCanSpeak: true,   // Авторитетное разрешение от сервера на включение микрофона
+  userWantsMic: true,     // Пользовательское желание держать микрофон включённым
+  allowedSpeakers: [],    // Список ID игроков, чей голос разрешено слышать в текущей фазе
+  manuallyMutedPeers: new Set(), // Игроки, заглушенные локально пользователем через интерфейс
+
   async startMicrophone() {
     if (this.localStream) return this.localStream;
     try {
@@ -10,6 +15,7 @@ export const AudioModule = {
         audio: true,
         video: false
       });
+      this.updateMicrophoneHardware();
       return this.localStream;
     } catch (error) {
       console.error('Ошибка доступа к микрофону:', error);
@@ -17,22 +23,89 @@ export const AudioModule = {
     }
   },
 
-  toggleMicrophone(enabled) {
+  /**
+   * Устанавливает серверные права на аудио и обновляет состояние треков и приём звука
+   */
+  setPermissions(permissions) {
+    if (!permissions) return;
+    this.serverCanSpeak = Boolean(permissions.canSpeak);
+    if (Array.isArray(permissions.allowedSpeakers)) {
+      this.allowedSpeakers = permissions.allowedSpeakers;
+    }
+
+    this.updateMicrophoneHardware();
+    this.updateIncomingAudio();
+  },
+
+  /**
+   * Применяет физическое состояние (enabled) к аудиодорожкам локального медиапотока
+   */
+  updateMicrophoneHardware() {
+    const effectiveEnabled = this.serverCanSpeak && this.userWantsMic;
     if (this.localStream) {
       this.localStream.getAudioTracks().forEach(track => {
-        track.enabled = enabled;
+        track.enabled = effectiveEnabled;
       });
     }
   },
 
-  toggleIncomingAudio(audioElements, enabled) {
-    audioElements.forEach(audio => {
-      audio.muted = !enabled;
+  /**
+   * Прямое переключение микрофона
+   */
+  toggleMicrophone(enabled) {
+    this.userWantsMic = Boolean(enabled);
+    this.updateMicrophoneHardware();
+  },
+
+  /**
+   * Пользовательский клик по кнопке микрофона
+   * Возвращает статус переключения
+   */
+  toggleUserMic() {
+    if (!this.serverCanSpeak) {
+      return { success: false, isMicOn: false, reason: 'server_muted' };
+    }
+    this.userWantsMic = !this.userWantsMic;
+    this.updateMicrophoneHardware();
+    return { success: true, isMicOn: this.userWantsMic };
+  },
+
+  /**
+   * Обновляет приём аудио для всех аудиоэлементов игроков в соответствии с правилами фазы
+   */
+  updateIncomingAudio() {
+    const audioElements = document.querySelectorAll('audio[id^="audio-"]');
+    audioElements.forEach(audioEl => {
+      const peerId = audioEl.id.replace('audio-', '');
+      const isAllowedByServer = this.allowedSpeakers.includes(peerId);
+      const isManuallyMuted = this.manuallyMutedPeers.has(peerId);
+
+      // Элемент глушится, если сервер запретил слушать этого игрока в данной фазе
+      // ИЛИ если пользователь сам заглушил его
+      audioEl.muted = !isAllowedByServer || isManuallyMuted;
     });
   },
 
+  /**
+   * Локальное переключение звука конкретного игрока пользователем
+   */
+  togglePeerMute(peerId) {
+    if (this.manuallyMutedPeers.has(peerId)) {
+      this.manuallyMutedPeers.delete(peerId);
+    } else {
+      this.manuallyMutedPeers.add(peerId);
+    }
+    this.updateIncomingAudio();
+    return this.manuallyMutedPeers.has(peerId);
+  },
+
+  isPeerMuted(peerId) {
+    const audioEl = document.getElementById(`audio-${peerId}`);
+    if (audioEl) return audioEl.muted;
+    return !this.allowedSpeakers.includes(peerId) || this.manuallyMutedPeers.has(peerId);
+  },
+
   async createPeerConnection(targetUserId, socket) {
-    // Если соединение уже есть, возвращаем его
     if (this.peerConnections[targetUserId]) {
       return this.peerConnections[targetUserId];
     }
@@ -53,11 +126,9 @@ export const AudioModule = {
         ]
     });
 
-    // Записываем объект сразу, чтобы предотвратить создание дубликатов во время async ожидания микрофона
     this.peerConnections[targetUserId] = pc;
     this.iceCandidateQueues[targetUserId] = [];
 
-    // Гарантируем, что микрофон захвачен перед добавлением треков
     if (!this.localStream) {
       await this.startMicrophone();
     }
@@ -79,10 +150,11 @@ export const AudioModule = {
       }
       audioEl.srcObject = event.streams[0];
       
-      // Попытка воспроизведения + автоматический разблок при первом клике/касании по экрану
+      this.updateIncomingAudio();
+
       const playAudio = () => {
         audioEl.play().catch(err => {
-          console.warn('Автовоспроизведение заблокировано браузером. Звук включится после клика по странице.', err);
+          console.warn('Автовоспроизведение ожидает взаимодействия пользователя:', err);
           const unlock = () => {
             audioEl.play().catch(e => console.error('Ошибка воспроизведения:', e));
             document.removeEventListener('click', unlock);
@@ -117,7 +189,6 @@ export const AudioModule = {
     if (signal.sdp) {
       await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
 
-      // Применяем накопленные ICE-кандидаты после установки RemoteDescription
       if (this.iceCandidateQueues[fromUserId]) {
         while (this.iceCandidateQueues[fromUserId].length > 0) {
           const candidate = this.iceCandidateQueues[fromUserId].shift();
@@ -138,7 +209,6 @@ export const AudioModule = {
       if (pc.remoteDescription && pc.remoteDescription.type) {
         await pc.addIceCandidate(candidate);
       } else {
-        // Сохраняем кандидат в очередь, если RemoteDescription еще не установлен
         if (!this.iceCandidateQueues[fromUserId]) {
           this.iceCandidateQueues[fromUserId] = [];
         }

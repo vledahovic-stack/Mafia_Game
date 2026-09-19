@@ -22,41 +22,66 @@ function createAudioButton(player, socketId) {
     const isMe = (player.id === socketId);
     const btn = document.createElement('button');
     btn.className = 'card-audio-btn';
+    btn.dataset.playerId = player.id;
 
-    const updateBtnText = (muted) => {
+    const updateBtnText = () => {
         if (isMe) {
-            btn.textContent = isMicOn ? '🎙️' : '🔇';
+            const isSpeakingAllowed = AudioModule.serverCanSpeak;
+            const isMicActive = isSpeakingAllowed && AudioModule.userWantsMic;
+            btn.textContent = isMicActive ? '🎙️' : '🔇';
+            btn.title = isSpeakingAllowed
+                ? (isMicActive ? 'Микрофон включен (нажмите, чтобы выключить)' : 'Микрофон выключен (нажмите, чтобы включить)')
+                : 'Микрофон заблокирован правилами текущей фазы';
+            btn.style.opacity = isSpeakingAllowed ? '1' : '0.6';
         } else {
-            btn.textContent = muted ? '🔇' : '🔊';
+            const isMuted = AudioModule.isPeerMuted(player.id);
+            btn.textContent = isMuted ? '🔇' : '🔊';
+            btn.title = isMuted ? 'Звук игрока выключен' : 'Звук игрока включен';
         }
     };
 
     if (isMe) {
-        updateBtnText(false);
-        btn.onclick = async () => {
-            try {
-                isMicOn = !isMicOn;
-                await AudioModule.toggleMicrophone(isMicOn);
-                updateBtnText();
-            } catch (err) {
-                alert('Браузер заблокировал микрофон. Разрешите доступ к микрофону в настройках браузера.');
+        updateBtnText();
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const res = AudioModule.toggleUserMic();
+            if (!res.success && res.reason === 'server_muted') {
+                if (typeof showToast === 'function') {
+                    showToast('Микрофон заблокирован правилами текущей фазы.', 'error');
+                }
             }
+            updateBtnText();
         };
     } else {
-        const audioEl = document.getElementById(`audio-${player.id}`);
-        updateBtnText(audioEl ? audioEl.muted : false);
-        
-        btn.onclick = () => {
-            const targetAudio = document.getElementById(`audio-${player.id}`);
-            if (targetAudio) {
-                targetAudio.muted = !targetAudio.muted;
-                updateBtnText(targetAudio.muted);
-            } else {
-                alert('Аудиопоток игрока еще не готов.');
-            }
+        updateBtnText();
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            AudioModule.togglePeerMute(player.id);
+            updateBtnText();
         };
     }
     return btn;
+}
+
+function updateAllAudioButtons() {
+    document.querySelectorAll('.card-audio-btn').forEach(btn => {
+        const pId = btn.dataset.playerId;
+        if (!pId) return;
+        const isMe = (pId === socket.id);
+        if (isMe) {
+            const isSpeakingAllowed = AudioModule.serverCanSpeak;
+            const isMicActive = isSpeakingAllowed && AudioModule.userWantsMic;
+            btn.textContent = isMicActive ? '🎙️' : '🔇';
+            btn.title = isSpeakingAllowed
+                ? (isMicActive ? 'Микрофон включен (нажмите, чтобы выключить)' : 'Микрофон выключен (нажмите, чтобы включить)')
+                : 'Микрофон заблокирован правилами текущей фазы';
+            btn.style.opacity = isSpeakingAllowed ? '1' : '0.6';
+        } else {
+            const isMuted = AudioModule.isPeerMuted(pId);
+            btn.textContent = isMuted ? '🔇' : '🔊';
+            btn.title = isMuted ? 'Звук игрока выключен' : 'Звук игрока включен';
+        }
+    });
 }
 
 const lobbyScreen = document.getElementById('lobby-screen');
@@ -399,40 +424,52 @@ socket.on('nightNews', (data) => {
     showNightNewsModal(data.message);
 });
 
+socket.on('audioPermissions', (permissions) => {
+    AudioModule.setPermissions(permissions);
+    updateAllAudioButtons();
+});
+
 socket.on('errorMessage', (msg) => {
     alert(msg);
 });
 
 function updateMicrophoneState(gameState, myPlayer) {
     if (!myPlayer || myPlayer.isAlive === false || !gameState) {
-        AudioModule.toggleMicrophone(false);
+        AudioModule.setPermissions({ canSpeak: false, allowedSpeakers: [] });
+        updateAllAudioButtons();
         return;
     }
 
     const myName = myPlayer.username || myPlayer.name;
     const isMyTurnToSpeak = (gameState.currentSpeaker === myName);
-    const isMafia = (myPlayer.role === 'Мафия' || myPlayer.team === 'Мафия');
+    const r = String(myPlayer.role || '').toLowerCase();
+    const t = String(myPlayer.team || '').toLowerCase();
+    const isMafia = r.includes('мафия') || r.includes('дон') || t === 'мафия';
+    const gameMode = currentSettings?.rules?.gameMode || currentSettings?.gameMode || 'city';
 
     let canSpeak = false;
 
     switch (gameState.phase) {
         case 0.5:
-            // Договорка: говорят только члены чёрной команды
+            // Договорка: говорят только члены команды Мафии
             canSpeak = isMafia;
             break;
 
         case 1:
-            canSpeak = true;
+            // Общее собрание: говорят все живые игроки
+            canSpeak = myPlayer.isAlive !== false;
             break;
 
         case 2:
         case 2.5:
         case 4:
+            // Индивидуальная / защитная речь / последнее слово: ТОЛЬКО активный спикер
             canSpeak = isMyTurnToSpeak;
             break;
 
         case 5:
-            canSpeak = isMafia;
+            // Ночь: в городском режиме говорит только живая Мафия, в спортивном — полная тишина
+            canSpeak = (gameMode === 'city') && isMafia && (myPlayer.isAlive !== false);
             break;
 
         default:
@@ -440,7 +477,9 @@ function updateMicrophoneState(gameState, myPlayer) {
             break;
     }
 
-    AudioModule.toggleMicrophone(canSpeak);
+    // Применяем локально и обновляем UI
+    AudioModule.updateIncomingAudio();
+    updateAllAudioButtons();
 }
 
 function updateCentralPhaseBanner(state) {
