@@ -12,6 +12,11 @@ const {
     handleRoleAction,
     handleDonShot
 } = require('./gameLogic');
+const {
+    canPlayerHear,
+    getAudioPermissionsForPlayer,
+    broadcastAudioPermissions
+} = require('./audioChannels');
 const { getDefaultSettings } = require('./gameSettings');
 const express = require('express');
 const http = require('http');
@@ -797,6 +802,9 @@ io.on('connection', (socket) => {
         socket.emit('room-joined');
         socket.to(roomId).emit('user-joined', { userId: socket.id });
 
+        socket.emit('audioPermissions', getAudioPermissionsForPlayer(room, socket.id));
+        broadcastAudioPermissions(room, io);
+
         if (currentUserId) {
             db.get('SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?', [currentUserId, 'role_card'], (err, row) => {
                 const count = (row && row.quantity) ? row.quantity : 0;
@@ -871,6 +879,22 @@ io.on('connection', (socket) => {
     });
 
     socket.on('signal', ({ target, signal }) => {
+        let roomId = socket.roomId;
+        if (!roomId) {
+            const found = Object.values(rooms).find(r => r.players && r.players.some(p => p.id === socket.id));
+            if (found) roomId = found.id;
+        }
+        const room = roomId ? rooms[roomId] : null;
+
+        // Валидация на стороне сервера: разрешено ли передавать аудио между данными игроками
+        if (room && room.gameState) {
+            const isAllowed = canPlayerHear(room, socket.id, target);
+            if (!isAllowed) {
+                // Блокируем несанкционированную маршрутизацию WebRTC сигнала
+                return;
+            }
+        }
+
         io.to(target).emit('signal', {
             from: socket.id,
             signal
@@ -959,6 +983,7 @@ io.on('connection', (socket) => {
             room.gameState = null;
             io.to(roomId).emit('gameEnded');
             io.to(roomId).emit('updatePlayers', room.players);
+            broadcastAudioPermissions(room, io);
             broadcastRooms();
         }
     });

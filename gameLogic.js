@@ -1,5 +1,6 @@
 const { ROLES, assignRoles, checkWinCondition } = require('./rolesConfig');
 const { XP_CONFIG } = require('./xpConfig');
+const { broadcastAudioPermissions } = require('./audioChannels');
 
 // Очищает gameState от таймеров Node.js перед socket.emit (предотвращает "circular structure" ошибку)
 function sanitizeGameState(gs) {
@@ -46,6 +47,7 @@ function setPhase(room, phase, io) {
     }
 
     io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
+    broadcastAudioPermissions(room, io);
 
     room.timer = setInterval(() => {
         if (room.gameState.timeLeft > 0) {
@@ -86,6 +88,7 @@ function startIndividualSpeechPhase(room, io) {
     room.gameState.speakerNominations = {};
 
     notifySpeakerStart(room, io, room.gameState.currentSpeaker);
+    broadcastAudioPermissions(room, io);
     runSpeechTimer(room, io);
 }
 
@@ -119,6 +122,7 @@ function nextSpeaker(room, io) {
         room.gameState.timeLeft = room.gameState.speechDuration;
 
         notifySpeakerStart(room, io, nextSpeakerName);
+        broadcastAudioPermissions(room, io);
         runSpeechTimer(room, io);
     } else {
         clearInterval(room.timer);
@@ -230,6 +234,7 @@ function startVotingPhase(room, io, isTieBreaker = false) {
     if (room.timer) clearInterval(room.timer);
 
     io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
+    broadcastAudioPermissions(room, io);
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -388,6 +393,7 @@ function startDefenseSpeeches(room, io, tiedCandidates) {
     if (room.timer) clearInterval(room.timer);
 
     io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
+    broadcastAudioPermissions(room, io);
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -414,6 +420,7 @@ function nextDefenseSpeaker(room, io) {
         room.gameState.timeLeft = 30;
 
         notifySpeakerStart(room, io, nextSpeakerName);
+        broadcastAudioPermissions(room, io);
     } else {
         clearInterval(room.timer);
         startVotingPhase(room, io, true);
@@ -449,6 +456,8 @@ function eliminatePlayer(room, io, candidateName, isFromNight = false) {
         room.gameState.gameLog = room.gameLog;
     }
 
+    broadcastAudioPermissions(room, io);
+
     if (checkWinCondition(room, io)) {
         return;
     }
@@ -470,6 +479,7 @@ function startLastWordPhase(room, io, candidateName, isFromNight = false) {
     if (room.timer) clearInterval(room.timer);
 
     io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
+    broadcastAudioPermissions(room, io);
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -509,6 +519,7 @@ function startNightPhase(room, io) {
     if (room.timer) clearInterval(room.timer);
 
     io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
+    broadcastAudioPermissions(room, io);
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
@@ -838,6 +849,7 @@ function startGame(room, io) {
     });
 
     io.to(room.id).emit('updatePlayers', room.players);
+    broadcastAudioPermissions(room, io);
 
     // Проверяем условия запуска стартовой договорки:
     // 1) Режим «Спортивная мафия»
@@ -880,6 +892,7 @@ function startMafiaHuddle(room, io) {
     }
 
     io.to(room.id).emit('gameStateUpdate', sanitizeGameState(room.gameState));
+    broadcastAudioPermissions(room, io);
 
     room.timer = setInterval(() => {
         if (!room.gameState) {
