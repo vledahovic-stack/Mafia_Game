@@ -1592,47 +1592,74 @@ ul.room-list-mock {
     gap: 10px !important;
   }
 
-  /* Центральный динамический баннер фазы и таймера */
+  /* Центральный динамический баннер фазы и таймера (единый для всех экранов на ПК) */
   #game-phase-banner,
   .game-phase-banner-inline {
     display: flex !important;
     align-items: center !important;
-    justify-content: space-between !important;
-    gap: 12px !important;
-    padding: 8px 16px !important;
+    justify-content: center !important;
+    padding: 10px 20px !important;
     border-radius: 12px !important;
-    font-size: 0.9rem !important;
+    font-size: 0.95rem !important;
     font-weight: 800 !important;
     flex-shrink: 0 !important;
     box-sizing: border-box !important;
     width: 100% !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     background: rgba(255, 255, 255, 0.04) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
+
+  .phase-banner-content {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+    white-space: nowrap !important;
   }
 
   .phase-banner-day {
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
-    gap: 8px !important;
     font-size: 0.95rem !important;
     font-weight: 800 !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .phase-banner-sep {
+    display: inline-block !important;
+    color: var(--clr-muted) !important;
+    opacity: 0.5 !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    user-select: none !important;
   }
 
   .phase-banner-title {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
     color: #ffffff !important;
     font-weight: 800 !important;
     font-size: 0.95rem !important;
     text-align: center !important;
-    flex: 1 !important;
+  }
+
+  .phase-banner-icon {
+    font-size: 1.1rem !important;
+    line-height: 1 !important;
   }
 
   .phase-banner-timer {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
     color: var(--clr-red) !important;
     font-variant-numeric: tabular-nums !important;
-    font-size: 1.15rem !important;
+    font-size: 1.05rem !important;
     font-weight: 900 !important;
-    min-width: 60px !important;
-    text-align: right !important;
     text-shadow: 0 0 10px rgba(255, 83, 112, 0.4) !important;
   }
 
@@ -1692,7 +1719,7 @@ ul.room-list-mock {
   }
 
   /* ============================================================
-     ФАЗА 2: ИНДИВИДУАЛЬНАЯ РЕЧЬ (УВЕЛИЧЕННАЯ КАРТОЧКА СПИКЕРА)
+     ФАЗА 2: ИНДИВИДУАЛЬНАЯ РЕЧЬ (УВЕЛИЧЕННАЯ КАРТОЧКА СПИКЕРА НА ПК)
      ============================================================ */
   .game-action-panel {
     display: flex !important;
@@ -1710,47 +1737,83 @@ ul.room-list-mock {
     padding-bottom: 8px !important;
   }
 
+  /* Заголовок спикера (#1 Incognito) */
+  .speaker-player-header-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    margin-top: 4px !important;
+    margin-bottom: 2px !important;
+    text-align: center !important;
+  }
+
+  .speaker-player-number {
+    color: var(--clr-gold) !important;
+    font-size: 1.15rem !important;
+    font-weight: 900 !important;
+  }
+
+  .speaker-player-name {
+    color: #ffffff !important;
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+  }
+
+  /* Контейнер карточки выступающего игрока (аватар / видеопоток на ПК) */
   .speaker-card-prominent {
-    width: 100% !important;
-    max-width: 440px !important;
-    padding: 14px 18px !important;
-    background: rgba(255, 209, 102, 0.08) !important;
-    border: 2px solid rgba(255, 209, 102, 0.6) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 8px 30px rgba(255, 209, 102, 0.2), 0 0 20px rgba(255, 209, 102, 0.1) !important;
+    width: 300px !important;
+    height: 300px !important;
+    max-width: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+    padding: 0 !important;
+    margin: 4px auto 0 !important;
+    background: rgba(18, 18, 28, 0.85) !important;
+    border: 2px solid rgba(255, 209, 102, 0.7) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6), 0 0 25px rgba(255, 209, 102, 0.2) !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    text-align: center !important;
-    gap: 6px !important;
+    justify-content: center !important;
     box-sizing: border-box !important;
     flex-shrink: 0 !important;
+    overflow: hidden !important;
+    position: relative !important;
   }
 
-  .speaker-avatar-icon {
-    font-size: 2.2rem !important;
-    line-height: 1 !important;
-    filter: drop-shadow(0 0 10px rgba(255, 209, 102, 0.4)) !important;
-  }
-
-  .speaker-name-display {
-    font-size: 1.2rem !important;
-    font-weight: 800 !important;
-    color: #ffffff !important;
+  .speaker-player-avatar {
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 16px !important;
+    background: linear-gradient(180deg, rgba(255, 209, 102, 0.08) 0%, rgba(255, 209, 102, 0.02) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  .speaker-player-avatar::before {
+    content: '👤';
+    font-size: 4.5rem;
+    opacity: 0.35;
+    filter: drop-shadow(0 0 12px rgba(255, 209, 102, 0.35));
   }
 
   .speaker-status-tag {
-    font-size: 0.8rem !important;
+    font-size: 0.82rem !important;
     font-weight: 700 !important;
     color: var(--clr-gold) !important;
-    background: rgba(255, 209, 102, 0.15) !important;
-    padding: 3px 12px !important;
+    background: rgba(255, 209, 102, 0.12) !important;
+    padding: 4px 14px !important;
     border-radius: 20px !important;
     border: 1px solid rgba(255, 209, 102, 0.3) !important;
+    margin-top: 2px !important;
   }
 
   .nomination-status-badge {

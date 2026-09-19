@@ -458,13 +458,23 @@ function updateCentralPhaseBanner(state) {
     let phaseBorder = 'rgba(255,209,102,0.3)';
     let phaseColor = 'var(--clr-gold)';
 
-    if (state.phase === 5 || state.phase === 0.5) {
+    if (state.phase === 0.5) {
+        phaseIcon = '🎭';
+        phaseBg = 'rgba(84,160,255,0.08)';
+        phaseBorder = 'rgba(84,160,255,0.3)';
+        phaseColor = 'var(--clr-blue)';
+    } else if (state.phase === 5) {
         phaseIcon = '🌙';
         phaseBg = 'rgba(84,160,255,0.08)';
         phaseBorder = 'rgba(84,160,255,0.3)';
         phaseColor = 'var(--clr-blue)';
-    } else if (state.phase === 3) {
+    } else if (state.phase === 3.5 || (state.isTieBreaker && state.phase >= 3)) {
         phaseIcon = '⚖️';
+        phaseBg = 'rgba(255,83,112,0.08)';
+        phaseBorder = 'rgba(255,83,112,0.3)';
+        phaseColor = 'var(--clr-red)';
+    } else if (state.phase === 3) {
+        phaseIcon = '🗳️';
         phaseBg = 'rgba(255,83,112,0.08)';
         phaseBorder = 'rgba(255,83,112,0.3)';
         phaseColor = 'var(--clr-red)';
@@ -478,6 +488,11 @@ function updateCentralPhaseBanner(state) {
         phaseBg = 'rgba(255,159,67,0.08)';
         phaseBorder = 'rgba(255,159,67,0.3)';
         phaseColor = 'var(--clr-orange)';
+    } else if (state.phase === 1) {
+        phaseIcon = '🌤️';
+        phaseBg = 'rgba(255,209,102,0.08)';
+        phaseBorder = 'rgba(255,209,102,0.3)';
+        phaseColor = 'var(--clr-gold)';
     }
 
     phaseBanner.style.display = 'flex';
@@ -487,11 +502,13 @@ function updateCentralPhaseBanner(state) {
     phaseBanner.innerHTML = `
         <div class="phase-banner-content">
             <div class="phase-banner-day" style="color:${phaseColor};">
-                <span class="phase-banner-icon">${phaseIcon}</span>
                 <strong>${dayText}</strong>
             </div>
             <span class="phase-banner-sep">•</span>
-            <div class="phase-banner-title">${phaseText}</div>
+            <div class="phase-banner-title">
+                <span class="phase-banner-icon">${phaseIcon}</span>
+                <span class="phase-banner-title-text">${phaseText}</span>
+            </div>
             <span class="phase-banner-sep">•</span>
             <div class="phase-banner-timer">⏱ ${timerText}</div>
         </div>
