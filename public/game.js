@@ -15,6 +15,40 @@ let lastPhase = null;
 let lastSpeakerName = null;
 let lastStateJSON = '';
 
+// Всплывающие уведомления (Toast)
+function showToast(message, type = 'success') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast-message toast-${type}`;
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    else if (type === 'error') icon = '❌';
+    else if (type === 'warning') icon = '⚠️';
+
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text">${message}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('toast-show');
+    }, 10);
+
+    setTimeout(() => {
+        toast.classList.remove('toast-show');
+        toast.classList.add('toast-hide');
+        setTimeout(() => {
+            if (toast.parentElement) toast.remove();
+        }, 350);
+    }, 3500);
+}
+window.showToast = showToast;
+
 // Флаг: сделал ли Дон проверку в текущую ночь (обновляется через actionResult и сбрасывается при старте ночи)
 let donAlreadyChecked = false;
 
@@ -147,18 +181,13 @@ socket.on('room-joined', async () => {
 });
 
 socket.on('user-joined', ({ userId }) => {
+  if (userId === socket.id) return;
+  AudioModule.closePeerConnection(userId);
   AudioModule.connectToPeer(userId, socket);
 });
 
 socket.on('user-left', ({ userId }) => {
-  if (AudioModule.peerConnections[userId]) {
-    AudioModule.peerConnections[userId].close();
-    delete AudioModule.peerConnections[userId];
-  }
-  const audioEl = document.getElementById(`audio-${userId}`);
-  if (audioEl) {
-    audioEl.remove();
-  }
+  AudioModule.closePeerConnection(userId);
 });
 
 socket.on('kicked', () => {
@@ -645,11 +674,11 @@ socket.on('gameStateUpdate', (state) => {
         }
     }
 
-    const endGameBurgerItem = document.querySelector('.burger-end-game-item');
+    const endGameBurgerItems = document.querySelectorAll('.burger-end-game-item');
     const isBurgerGameActive = !!gameScreen && gameScreen.style.display !== 'none' && !!state && typeof state.phase === 'number' && state.phase > 0 && !!me;
-    if (endGameBurgerItem) {
-        endGameBurgerItem.style.display = (window.innerWidth <= 768 && isBurgerGameActive && isHost) ? 'flex' : 'none';
-    }
+    endGameBurgerItems.forEach(item => {
+        item.style.display = (isBurgerGameActive && isHost) ? 'flex' : 'none';
+    });
 
     if (state.gameLog) {
         renderGameLog(state.gameLog);
@@ -1737,6 +1766,14 @@ function initBurgerMenu() {
         });
     });
 
+    // Пункт «🔄 Сброс подключения»
+    document.querySelectorAll('.burger-reset-conn-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            closeAllBurgerDropdowns();
+            resetConnection();
+        });
+    });
+
     // Пункт «🔄 Обновить»
     document.querySelectorAll('.burger-reload-item').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1761,6 +1798,28 @@ function initBurgerMenu() {
         });
     });
 }
+
+async function resetConnection() {
+    showToast('Сброс подключения и перезапрос медиапотоков...', 'info');
+    try {
+        // 1. Полностью закрываем все текущие соединения и запрашиваем микрофон/камеру заново
+        await AudioModule.requestUserMediaAndReset(true);
+
+        // 2. Уведомляем сервер для синхронизации состояния комнаты и WebRTC
+        if (socket.connected) {
+            socket.emit('resetConnection', { roomId });
+        } else {
+            socket.connect();
+        }
+
+        updateAllAudioButtons();
+        showToast('Подключение успешно сброшено и восстановлено', 'success');
+    } catch (err) {
+        console.error('Ошибка при сбросе подключения:', err);
+        showToast('Ошибка при сбросе: ' + (err.message || err), 'error');
+    }
+}
+window.resetConnection = resetConnection;
 
 initBurgerMenu();
 

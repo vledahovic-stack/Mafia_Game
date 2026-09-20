@@ -9,7 +9,10 @@ export const AudioModule = {
   manuallyMutedPeers: new Set(), // Игроки, заглушенные локально пользователем через интерфейс
 
   async startMicrophone() {
-    if (this.localStream) return this.localStream;
+    if (this.localStream && this.localStream.active && this.localStream.getAudioTracks().length > 0) {
+      this.updateMicrophoneHardware();
+      return this.localStream;
+    }
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -21,6 +24,47 @@ export const AudioModule = {
       console.error('Ошибка доступа к микрофону:', error);
       return null;
     }
+  },
+
+  /**
+   * Полный сброс текущих медиапотоков и повторный запрос разрешений на микрофон и камеру
+   */
+  async requestUserMediaAndReset(includeVideo = true) {
+    // 1. Закрываем все текущие WebRTC соединения и останавливаем старые дорожки
+    this.disconnect();
+
+    // 2. Удаляем все ранее созданные теги <audio> для пиров
+    document.querySelectorAll('audio[id^="audio-"]').forEach(el => el.remove());
+
+    // 3. Запрашиваем доступ к микрофону и камере
+    if (includeVideo && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const combinedStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true
+        });
+        // Освобождаем видеотрек, если видео не выводится в интерфейс игры
+        combinedStream.getVideoTracks().forEach(track => track.stop());
+        
+        // Оставляем аудиотрек в localStream
+        this.localStream = new MediaStream(combinedStream.getAudioTracks());
+      } catch (err) {
+        console.warn('Не удалось запросить видео/камеру, пробуем только микрофон:', err);
+        try {
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false
+          });
+        } catch (audioErr) {
+          console.error('Ошибка доступа к микрофону:', audioErr);
+        }
+      }
+    } else {
+      await this.startMicrophone();
+    }
+
+    this.updateMicrophoneHardware();
+    return this.localStream;
   },
 
   /**
@@ -105,9 +149,28 @@ export const AudioModule = {
     return !this.allowedSpeakers.includes(peerId) || this.manuallyMutedPeers.has(peerId);
   },
 
+  closePeerConnection(targetUserId) {
+    if (this.peerConnections[targetUserId]) {
+      try {
+        this.peerConnections[targetUserId].close();
+      } catch (e) {}
+      delete this.peerConnections[targetUserId];
+    }
+    delete this.iceCandidateQueues[targetUserId];
+    const audioEl = document.getElementById(`audio-${targetUserId}`);
+    if (audioEl) {
+      audioEl.remove();
+    }
+  },
+
   async createPeerConnection(targetUserId, socket) {
     if (this.peerConnections[targetUserId]) {
-      return this.peerConnections[targetUserId];
+      const state = this.peerConnections[targetUserId].connectionState;
+      if (state === 'closed' || state === 'failed') {
+        this.closePeerConnection(targetUserId);
+      } else {
+        return this.peerConnections[targetUserId];
+      }
     }
 
     const pc = new RTCPeerConnection({
@@ -129,7 +192,7 @@ export const AudioModule = {
     this.peerConnections[targetUserId] = pc;
     this.iceCandidateQueues[targetUserId] = [];
 
-    if (!this.localStream) {
+    if (!this.localStream || !this.localStream.active) {
       await this.startMicrophone();
     }
 
@@ -182,6 +245,13 @@ export const AudioModule = {
 
   async handleSignal(fromUserId, signal, socket) {
     let pc = this.peerConnections[fromUserId];
+    if (signal.sdp && signal.sdp.type === 'offer') {
+      if (pc && (pc.signalingState !== 'stable' || pc.connectionState === 'closed' || pc.connectionState === 'failed')) {
+        this.closePeerConnection(fromUserId);
+        pc = null;
+      }
+    }
+
     if (!pc) {
       pc = await this.createPeerConnection(fromUserId, socket);
     }
@@ -192,7 +262,7 @@ export const AudioModule = {
       if (this.iceCandidateQueues[fromUserId]) {
         while (this.iceCandidateQueues[fromUserId].length > 0) {
           const candidate = this.iceCandidateQueues[fromUserId].shift();
-          await pc.addIceCandidate(candidate);
+          await pc.addIceCandidate(candidate).catch(e => console.warn('Ошибка добавления ICE кандидата из очереди:', e));
         }
       }
 
@@ -207,7 +277,7 @@ export const AudioModule = {
     } else if (signal.candidate) {
       const candidate = new RTCIceCandidate(signal.candidate);
       if (pc.remoteDescription && pc.remoteDescription.type) {
-        await pc.addIceCandidate(candidate);
+        await pc.addIceCandidate(candidate).catch(e => console.warn('Ошибка добавления ICE кандидата:', e));
       } else {
         if (!this.iceCandidateQueues[fromUserId]) {
           this.iceCandidateQueues[fromUserId] = [];
@@ -218,6 +288,7 @@ export const AudioModule = {
   },
 
   async connectToPeer(targetUserId, socket) {
+    this.closePeerConnection(targetUserId);
     const pc = await this.createPeerConnection(targetUserId, socket);
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -228,12 +299,20 @@ export const AudioModule = {
   },
 
   disconnect() {
-    Object.values(this.peerConnections).forEach(pc => pc.close());
+    Object.values(this.peerConnections).forEach(pc => {
+      try {
+        pc.close();
+      } catch (e) {}
+    });
     this.peerConnections = {};
     this.iceCandidateQueues = {};
 
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch (e) {}
+      });
       this.localStream = null;
     }
   }

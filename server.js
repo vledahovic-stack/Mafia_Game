@@ -813,6 +813,47 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('resetConnection', async ({ roomId }) => {
+        const targetRoomId = roomId || socket.roomId;
+        if (!targetRoomId || !rooms[targetRoomId]) return;
+
+        const room = rooms[targetRoomId];
+        const clientName = socket.username || 'Игрок_' + socket.id.substring(0, 4);
+
+        // Уведомляем других участников о переподключении медиа этого игрока
+        socket.to(targetRoomId).emit('user-left', { userId: socket.id });
+
+        // Отправляем игроку актуальные настройки и состояние комнаты
+        socket.emit('settingsUpdated', room.settings);
+
+        let player = room.players.find(p => p.id === socket.id || p.username === clientName || p.name === clientName);
+        if (player) {
+            player.id = socket.id;
+        }
+
+        if (room.status === 'playing') {
+            if (player && player.role) {
+                socket.emit('yourRole', { role: player.role });
+            }
+            if (room.gameState) {
+                room.gameState.players = room.players;
+                socket.emit('gameStateUpdate', sanitizeGameState(room.gameState));
+            }
+        }
+
+        io.to(targetRoomId).emit('updatePlayers', room.players);
+
+        // Запуск микрофона у игрока
+        socket.emit('room-joined');
+
+        // Уведомляем других участников для инициирования нового WebRTC соединения
+        socket.to(targetRoomId).emit('user-joined', { userId: socket.id });
+
+        // Обновляем права на аудио
+        socket.emit('audioPermissions', getAudioPermissionsForPlayer(room, socket.id));
+        broadcastAudioPermissions(room, io);
+    });
+
     socket.on('addToBlacklist', async ({ targetUserId, roomId }) => {
         let currentUserId = socket.userId || socket.request.session?.userId;
         

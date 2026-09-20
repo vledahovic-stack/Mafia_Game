@@ -1205,7 +1205,7 @@ ul.room-list-mock {
   }
 
   .game-burger-menu-wrap {
-    display: none !important;
+    display: inline-flex !important;
   }
 
   .phase-banner-sep {
@@ -4943,6 +4943,12 @@ ul.room-list-mock {
   border-color: rgba(46, 213, 115, 0.4);
   color: #fff;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(46, 213, 115, 0.2);
+}
+
+.toast-message.toast-info {
+  border-color: rgba(74, 144, 226, 0.4);
+  color: #fff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(74, 144, 226, 0.2);
 }
 
 .toast-message.toast-error {
