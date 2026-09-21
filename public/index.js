@@ -535,12 +535,70 @@ function joinRoom(roomId) {
     window.location.href = `/game.html?id=${roomId}`;
 }
 
+function initSettingsTab() {
+    const videoToggle = document.getElementById('setting-video-toggle');
+    const resSelect = document.getElementById('setting-video-resolution');
+    const fpsSelect = document.getElementById('setting-video-fps');
+    const soundToggle = document.getElementById('setting-sound-toggle');
+    const voiceToggle = document.getElementById('setting-voice-toggle');
+
+    // 1. Загрузка сохраненных значений
+    const savedVideo = localStorage.getItem('webrtc_video_enabled') !== 'false';
+    const savedRes = localStorage.getItem('webrtc_video_resolution') || '320x240';
+    const savedFps = localStorage.getItem('webrtc_video_fps') || '20';
+    const savedSound = localStorage.getItem('setting_sound_enabled') !== 'false';
+    const savedVoice = localStorage.getItem('webrtc_voice_enabled') !== 'false';
+
+    if (videoToggle) videoToggle.checked = savedVideo;
+    if (resSelect) resSelect.value = savedRes;
+    if (fpsSelect) fpsSelect.value = savedFps;
+    if (soundToggle) soundToggle.checked = savedSound;
+    if (voiceToggle) voiceToggle.checked = savedVoice;
+
+    // 2. Обработчики изменений
+    if (videoToggle) {
+        videoToggle.addEventListener('change', () => {
+            localStorage.setItem('webrtc_video_enabled', String(videoToggle.checked));
+            showToast(`📹 Камера: ${videoToggle.checked ? 'Включена' : 'Отключена'}`, 'success');
+        });
+    }
+
+    if (resSelect) {
+        resSelect.addEventListener('change', () => {
+            localStorage.setItem('webrtc_video_resolution', resSelect.value);
+            showToast(`📐 Разрешение видео: ${resSelect.value}`, 'success');
+        });
+    }
+
+    if (fpsSelect) {
+        fpsSelect.addEventListener('change', () => {
+            localStorage.setItem('webrtc_video_fps', fpsSelect.value);
+            showToast(`⚡ Частота кадров: ${fpsSelect.value} FPS`, 'success');
+        });
+    }
+
+    if (soundToggle) {
+        soundToggle.addEventListener('change', () => {
+            localStorage.setItem('setting_sound_enabled', String(soundToggle.checked));
+            showToast(`🔊 Звуки: ${soundToggle.checked ? 'Включены' : 'Выключены'}`, 'success');
+        });
+    }
+
+    if (voiceToggle) {
+        voiceToggle.addEventListener('change', () => {
+            localStorage.setItem('webrtc_voice_enabled', String(voiceToggle.checked));
+            showToast(`🎙️ Голосовой чат: ${voiceToggle.checked ? 'Включен' : 'Выключен'}`, 'success');
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js');
     }
 
     await initAuth();
+    initSettingsTab();
 
     // Инициализация переключения вкладок навигации
     ['lobby', 'profile', 'shop', 'stats', 'settings'].forEach(tab => {

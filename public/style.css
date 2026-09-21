@@ -1352,6 +1352,8 @@ ul.room-list-mock {
     gap: 4px !important;
     transition: all var(--t) !important;
     box-sizing: border-box !important;
+    position: relative !important;
+    overflow: hidden !important;
   }
 
   .table-slot-card:hover {
@@ -1359,18 +1361,76 @@ ul.room-list-mock {
     background: rgba(255, 255, 255, 0.04) !important;
   }
 
+  .table-slot-card.occupied {
+    border-style: solid !important;
+    padding: 0 !important;
+  }
+
+  .slot-video-wrapper {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+    border-radius: inherit !important;
+    overflow: hidden !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .slot-video-element {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: inherit !important;
+    display: block !important;
+  }
+
+  .slot-avatar-fallback {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.5rem !important;
+    color: var(--clr-muted) !important;
+    z-index: 0 !important;
+  }
+
+  .slot-overlay-info {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding: 6px 8px 4px 8px !important;
+    background: linear-gradient(0deg, rgba(10, 12, 24, 0.9) 0%, rgba(10, 12, 24, 0.5) 60%, transparent 100%) !important;
+    z-index: 2 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1px !important;
+    pointer-events: none !important;
+  }
+
   .slot-num {
-    font-size: 1.1rem !important;
+    font-size: 0.95rem !important;
     font-weight: 900 !important;
     color: var(--clr-muted) !important;
-    opacity: 0.65 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
   }
 
   .slot-status {
     font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    color: var(--clr-muted) !important;
-    opacity: 0.5 !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
   }
 
   /* 4. Нижняя панель управления (под столом: 3 кнопки в один горизонтальный ряд) */
@@ -1690,19 +1750,21 @@ ul.room-list-mock {
 
   .table-players-grid .player-card,
   .table-players-grid .voting-card {
-    min-height: 76px !important;
+    min-height: 84px !important;
+    aspect-ratio: 4 / 3 !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
-    padding: 8px 8px !important;
+    padding: 0 !important;
     background: rgba(255, 255, 255, 0.04) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 12px !important;
     text-align: center !important;
-    gap: 4px !important;
     transition: transform var(--t), border-color var(--t), box-shadow var(--t), background var(--t) !important;
     box-sizing: border-box !important;
+    position: relative !important;
+    overflow: hidden !important;
   }
 
   .table-players-grid .player-card:hover,
@@ -1710,6 +1772,159 @@ ul.room-list-mock {
     transform: translateY(-2px) !important;
     border-color: var(--clr-gold) !important;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 12px rgba(255, 209, 102, 0.15) !important;
+  }
+
+  .table-players-grid .player-card.is-speaker {
+    border-color: var(--clr-gold) !important;
+    box-shadow: 0 0 16px rgba(255, 209, 102, 0.4) !important;
+  }
+
+  .table-players-grid .player-card.dead {
+    border-color: rgba(255, 83, 112, 0.4) !important;
+    opacity: 0.75 !important;
+  }
+
+  .table-players-grid .player-card.empty-slot {
+    padding: 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  /* Видеоконтейнер карточки игрока */
+  .player-card-video-wrap {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+    border-radius: inherit !important;
+    overflow: hidden !important;
+    background: rgba(15, 17, 35, 0.85) !important;
+  }
+
+  .player-card-video-element {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: inherit !important;
+    display: block !important;
+  }
+
+  .player-card-avatar-fallback {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.8rem !important;
+    color: var(--clr-muted) !important;
+    z-index: 0 !important;
+  }
+
+  /* Верхний оверлей карточки: номер и статус */
+  .player-card-overlay-top {
+    position: absolute !important;
+    top: 5px !important;
+    left: 6px !important;
+    right: 6px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    z-index: 3 !important;
+    pointer-events: none !important;
+  }
+
+  .player-card-num {
+    font-size: 0.76rem !important;
+    font-weight: 900 !important;
+    color: #fff !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    padding: 1px 6px !important;
+    border-radius: 6px !important;
+    backdrop-filter: blur(4px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .player-card-status-dot {
+    width: 9px !important;
+    height: 9px !important;
+    border-radius: 50% !important;
+  }
+
+  .player-card-status-dot.alive {
+    background: var(--clr-teal) !important;
+    box-shadow: 0 0 8px var(--clr-teal) !important;
+  }
+
+  .player-card-status-dot.speaking {
+    background: var(--clr-gold) !important;
+    box-shadow: 0 0 10px var(--clr-gold) !important;
+    animation: pulseDot 1.2s infinite alternate !important;
+  }
+
+  .player-card-status-dot.dead {
+    background: var(--clr-red) !important;
+    box-shadow: 0 0 6px var(--clr-red) !important;
+  }
+
+  /* Нижний оверлей карточки: имя и статус */
+  .player-card-overlay-bottom {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding: 6px 8px 4px 8px !important;
+    background: linear-gradient(0deg, rgba(10, 12, 24, 0.95) 0%, rgba(10, 12, 24, 0.7) 60%, transparent 100%) !important;
+    z-index: 3 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1px !important;
+    pointer-events: none !important;
+    text-align: left !important;
+  }
+
+  .player-card-name {
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  }
+
+  .player-card-sub {
+    font-size: 0.70rem !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+  }
+
+  .player-card .card-audio-btn {
+    position: absolute !important;
+    top: 4px !important;
+    right: 4px !important;
+    z-index: 4 !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 6px !important;
+    padding: 2px 4px !important;
+    font-size: 0.78rem !important;
+    cursor: pointer !important;
+    transition: transform var(--t), background var(--t) !important;
+  }
+
+  .player-card .card-audio-btn:hover {
+    background: rgba(0, 0, 0, 0.9) !important;
+    transform: scale(1.1) !important;
   }
 
   .table-players-grid .voting-card.selected {
@@ -1798,11 +2013,23 @@ ul.room-list-mock {
     overflow: hidden !important;
   }
 
-  .speaker-player-avatar::before {
-    content: '👤';
-    font-size: 4.5rem;
-    opacity: 0.35;
-    filter: drop-shadow(0 0 12px rgba(255, 209, 102, 0.35));
+  .speaker-video-element {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: inherit !important;
+    display: block !important;
+    z-index: 1 !important;
+  }
+
+  .speaker-avatar-fallback {
+    font-size: 3.5rem !important;
+    color: var(--clr-gold) !important;
+    z-index: 0 !important;
+    opacity: 0.6 !important;
   }
 
   .speaker-status-tag {

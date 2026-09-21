@@ -259,10 +259,44 @@
                     <hr style="border: 0; border-top: 1px solid var(--clr-border);">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
+                            <div style="font-weight: 700;">📹 Веб-камера (Видеосвязь)</div>
+                            <div style="font-size: 12px; color: var(--clr-muted);">Передавать видеопоток на игровой стол</div>
+                        </div>
+                        <input type="checkbox" id="setting-video-toggle" checked style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--clr-teal);">
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid var(--clr-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700;">📐 Разрешение видео</div>
+                            <div style="font-size: 12px; color: var(--clr-muted);">Разрешение картинки камеры (160x120 – 320x240)</div>
+                        </div>
+                        <select id="setting-video-resolution" style="background: var(--bg-card-2); color: #fff; border: 1px solid var(--clr-border); border-radius: var(--r-sm); padding: 6px 10px; cursor: pointer;">
+                            <option value="160x120">160 × 120 (Эконом)</option>
+                            <option value="240x180">240 × 180 (Среднее)</option>
+                            <option value="320x240" selected>320 × 240 (Стандарт)</option>
+                        </select>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid var(--clr-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700;">⚡ Частота кадров (FPS)</div>
+                            <div style="font-size: 12px; color: var(--clr-muted);">Частота кадров видеопотока (10 – 30 FPS)</div>
+                        </div>
+                        <select id="setting-video-fps" style="background: var(--bg-card-2); color: #fff; border: 1px solid var(--clr-border); border-radius: var(--r-sm); padding: 6px 10px; cursor: pointer;">
+                            <option value="10">10 FPS (Эконом)</option>
+                            <option value="15">15 FPS</option>
+                            <option value="20" selected>20 FPS (Оптимально)</option>
+                            <option value="25">25 FPS</option>
+                            <option value="30">30 FPS (Максимум)</option>
+                        </select>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid var(--clr-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
                             <div style="font-weight: 700;">🎨 Тема оформления</div>
                             <div style="font-size: 12px; color: var(--clr-muted);">Стиль интерфейса игрового стола</div>
                         </div>
-                        <select style="background: var(--bg-card-2); color: #fff; border: 1px solid var(--clr-border); border-radius: var(--r-sm); padding: 6px 10px;">
+                        <select id="setting-theme-select" style="background: var(--bg-card-2); color: #fff; border: 1px solid var(--clr-border); border-radius: var(--r-sm); padding: 6px 10px;">
                             <option value="noir">🌙 Тёмный нуар (Классика)</option>
                             <option value="neon">⚡ Неоновый клуб</option>
                         </select>

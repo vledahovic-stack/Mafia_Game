@@ -176,6 +176,10 @@ socket.on('signal', ({ from, signal }) => {
   AudioModule.handleSignal(from, signal, socket);
 });
 
+AudioModule.onRemoteStreamUpdate = (peerId, stream) => {
+  AudioModule.updatePeerVideoElements(peerId);
+};
+
 socket.on('room-joined', async () => {
   await AudioModule.startMicrophone();
 });
@@ -240,6 +244,7 @@ function updateLobbyTableSlots(players) {
         if (player) {
             const pName = player.username || player.name || `Игрок ${slotNum}`;
             const isMe = (player.id === socket.id);
+            const peerId = isMe ? 'local' : player.id;
 
             newSlot.classList.add('occupied');
             newSlot.style.borderColor = isMe ? 'rgba(29, 209, 161, 0.5)' : 'rgba(255, 209, 102, 0.4)';
@@ -247,10 +252,18 @@ function updateLobbyTableSlots(players) {
             newSlot.style.background = isMe ? 'rgba(29, 209, 161, 0.08)' : 'rgba(255, 255, 255, 0.05)';
             
             newSlot.innerHTML = `
-                <div class="slot-num" style="color: ${isMe ? 'var(--clr-teal)' : 'var(--clr-gold)'}; opacity: 1; font-size: 0.95rem; font-weight: 800;">#${slotNum}</div>
-                <div style="font-size: 1.3rem; line-height: 1.2; margin: 2px 0;">👤</div>
-                <div class="slot-status" style="color: #fff; font-weight: 700; opacity: 1; font-size: 0.85rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${pName}">${pName}</div>
+                <div class="slot-video-wrapper">
+                    <video class="slot-video-element" data-player-video="${peerId}" autoplay playsinline muted></video>
+                    <div class="slot-avatar-fallback">👤</div>
+                </div>
+                <div class="slot-overlay-info">
+                    <div class="slot-num" style="color: ${isMe ? 'var(--clr-teal)' : 'var(--clr-gold)'};">#${slotNum}</div>
+                    <div class="slot-status" title="${pName}">${pName}${isMe ? ' (Вы)' : ''}</div>
+                </div>
             `;
+
+            const videoEl = newSlot.querySelector('.slot-video-element');
+            AudioModule.attachVideo(videoEl, player.id, isMe);
 
             if (!isMe) {
                 newSlot.style.cursor = 'pointer';
@@ -781,8 +794,19 @@ function renderGridContent(state) {
 
                 const speakerCard = document.createElement('div');
                 speakerCard.className = 'speaker-card-prominent';
-                speakerCard.innerHTML = '<div class="speaker-player-avatar" aria-label="Карточка спикера"></div>';
+                const speakerPeerId = speakerPlayer ? (isSpeakerMe ? 'local' : speakerPlayer.id) : (isSpeakerMe ? 'local' : 'unknown');
+                speakerCard.innerHTML = `
+                    <div class="speaker-player-avatar" aria-label="Карточка спикера">
+                        <video class="speaker-video-element" data-player-video="${speakerPeerId}" autoplay playsinline muted></video>
+                        <div class="speaker-avatar-fallback">🎙️</div>
+                    </div>
+                `;
                 actionPanel.appendChild(speakerCard);
+
+                const speakerVideoEl = speakerCard.querySelector('.speaker-video-element');
+                if (speakerPlayer) {
+                    AudioModule.attachVideo(speakerVideoEl, speakerPlayer.id, isSpeakerMe);
+                }
 
                 const speakerStatus = document.createElement('div');
                 speakerStatus.className = 'speaker-status-tag';
@@ -1214,13 +1238,26 @@ function renderGridContent(state) {
                     const statusText = isAlive ? (isSpeaker ? '🗣️ Говорит' : '🟢 В игре') : '💀 Выбыл';
                     const statusColor = isAlive ? (isSpeaker ? 'var(--clr-gold)' : 'var(--clr-teal)') : 'var(--clr-red)';
                     const audioBtn = createAudioButton(player, socket.id);
+                    const peerId = isMe ? 'local' : player.id;
 
                     card.innerHTML = `
-                        <div style="font-size:0.75rem;font-weight:800;color:var(--clr-muted);opacity:0.7;">#${i + 1}</div>
-                        <div style="font-size:0.86rem;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${pName}">${pName}${isMe ? ' (Вы)' : ''}</div>
-                        <div style="font-size:0.72rem;color:${statusColor};">${statusText}</div>
+                        <div class="player-card-video-wrap">
+                            <video class="player-card-video-element" data-player-video="${peerId}" autoplay playsinline muted></video>
+                            <div class="player-card-avatar-fallback">👤</div>
+                        </div>
+                        <div class="player-card-overlay-top">
+                            <span class="player-card-num">#${i + 1}</span>
+                            <span class="player-card-status-dot ${isAlive ? (isSpeaker ? 'speaking' : 'alive') : 'dead'}"></span>
+                        </div>
+                        <div class="player-card-overlay-bottom">
+                            <div class="player-card-name" title="${pName}">${pName}${isMe ? ' (Вы)' : ''}</div>
+                            <div class="player-card-sub" style="color:${statusColor};">${statusText}</div>
+                        </div>
                     `;
                     card.appendChild(audioBtn);
+
+                    const videoEl = card.querySelector('.player-card-video-element');
+                    AudioModule.attachVideo(videoEl, player.id, isMe);
 
                     if (!isMe) {
                         card.style.cursor = 'pointer';
@@ -1477,6 +1514,16 @@ function showRoleModal(role) {
     }
 }
 
+function populateVideoSettingsInputs() {
+    const resSelect = document.getElementById('game-setting-video-resolution');
+    const fpsSelect = document.getElementById('game-setting-video-fps');
+    const videoToggle = document.getElementById('game-setting-video-toggle');
+
+    if (resSelect) resSelect.value = AudioModule.getVideoResolution().raw;
+    if (fpsSelect) fpsSelect.value = String(AudioModule.getVideoFPS());
+    if (videoToggle) videoToggle.checked = AudioModule.isVideoEnabled();
+}
+
 if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', () => {
         if (currentSettings) {
@@ -1495,6 +1542,7 @@ if (openSettingsBtn) {
             document.getElementById('setting-zhivchik').checked = !!currentSettings.roles.zhivchik;
             document.getElementById('setting-maniac').checked = !!currentSettings.roles.maniac;
         }
+        populateVideoSettingsInputs();
         settingsModal.style.display = 'flex';
     });
 }
@@ -1508,6 +1556,12 @@ if (closeSettingsBtn) {
 if (settingsForm) {
     settingsForm.addEventListener('submit', (e) => {
         e.preventDefault();
+
+        const resVal = document.getElementById('game-setting-video-resolution')?.value;
+        const fpsVal = parseInt(document.getElementById('game-setting-video-fps')?.value, 10);
+        const videoToggleVal = document.getElementById('game-setting-video-toggle')?.checked;
+        AudioModule.updateVideoQuality(resVal, fpsVal, videoToggleVal);
+
         const newSettings = {
             timers: {
                 generalMeeting: parseInt(document.getElementById('setting-generalMeeting').value) || 0,
@@ -1531,6 +1585,7 @@ if (settingsForm) {
 
         socket.emit('updateSettings', { roomId, newSettings });
         settingsModal.style.display = 'none';
+        showToast('⚙️ Настройки сохранены', 'success');
     });
 }
 
@@ -1760,6 +1815,7 @@ function initBurgerMenu() {
                             setCheck('setting-maniac', currentSettings.roles.maniac);
                         }
                     }
+                    populateVideoSettingsInputs();
                     settingsModal.style.display = 'flex';
                 }
             }

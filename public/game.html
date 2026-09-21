@@ -278,6 +278,32 @@
                     <!-- ================================================== -->
                 </div>
 
+                <div class="settings-group">
+                    <h4>Качество видео (WebRTC)</h4>
+                    <div class="setting-row">
+                        <label for="game-setting-video-resolution">Разрешение видео</label>
+                        <select id="game-setting-video-resolution">
+                            <option value="160x120">160 × 120 (Эконом)</option>
+                            <option value="240x180">240 × 180 (Среднее)</option>
+                            <option value="320x240" selected>320 × 240 (Стандарт)</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label for="game-setting-video-fps">Частота кадров</label>
+                        <select id="game-setting-video-fps">
+                            <option value="10">10 FPS (Эконом)</option>
+                            <option value="15">15 FPS</option>
+                            <option value="20" selected>20 FPS (Оптимально)</option>
+                            <option value="25">25 FPS</option>
+                            <option value="30">30 FPS (Максимум)</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label for="game-setting-video-toggle">Включить камеру</label>
+                        <input type="checkbox" id="game-setting-video-toggle" checked>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-settings-save">Сохранить</button>
             </form>
         </div>

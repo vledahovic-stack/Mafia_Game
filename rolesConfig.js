@@ -470,6 +470,7 @@ function checkWinCondition(room, io) {
                 if (io && room.id) {
                     io.to(room.id).emit('gameStateUpdate', room.gameState);
                     io.to(room.id).emit('gameOver', { winner: winner });
+                    io.emit('room_status_changed', { roomId: room.id, status: 'waiting' });
                 }
 
                 setTimeout(() => {

@@ -1,69 +1,272 @@
+/**
+ * audio.js / WebRTC Media Module
+ * Полноценная P2P WebRTC аудио- и видеосвязь между браузерами игроков
+ */
+
 export const AudioModule = {
   localStream: null,
   peerConnections: {},
   iceCandidateQueues: {}, // Буфер для ранних ICE-кандидатов
+  remoteStreams: {},      // Хранилище удаленных медиапотоков: { [userId]: MediaStream }
 
   serverCanSpeak: true,   // Авторитетное разрешение от сервера на включение микрофона
   userWantsMic: true,     // Пользовательское желание держать микрофон включённым
   allowedSpeakers: [],    // Список ID игроков, чей голос разрешено слышать в текущей фазе
   manuallyMutedPeers: new Set(), // Игроки, заглушенные локально пользователем через интерфейс
+  onRemoteStreamUpdate: null,    // Callback при получении/обновлении видеопотока
 
+  /**
+   * Получение сохраненного разрешения видео из localStorage
+   * Поддерживаемый диапазон: от 160x120 до 320x240
+   */
+  getVideoResolution() {
+    const saved = localStorage.getItem('webrtc_video_resolution') || '320x240';
+    const parts = saved.split('x').map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return { width: parts[0], height: parts[1], raw: saved };
+    }
+    return { width: 320, height: 240, raw: '320x240' };
+  },
+
+  /**
+   * Получение сохраненного FPS из localStorage (10 - 30 FPS)
+   */
+  getVideoFPS() {
+    const saved = parseInt(localStorage.getItem('webrtc_video_fps'), 10);
+    if (!isNaN(saved) && saved >= 10 && saved <= 30) {
+      return saved;
+    }
+    return 20;
+  },
+
+  /**
+   * Проверка, включена ли камера пользователем
+   */
+  isVideoEnabled() {
+    return localStorage.getItem('webrtc_video_enabled') !== 'false';
+  },
+
+  /**
+   * Запуск локального медиапотока (микрофон + камера) с текущими настройками качества
+   */
   async startMicrophone() {
-    if (this.localStream && this.localStream.active && this.localStream.getAudioTracks().length > 0) {
+    if (this.localStream && this.localStream.active && this.localStream.getTracks().length > 0) {
       this.updateMicrophoneHardware();
+      this.updateAllLocalVideoElements();
       return this.localStream;
     }
+
+    const res = this.getVideoResolution();
+    const fps = this.getVideoFPS();
+    const videoEnabled = this.isVideoEnabled();
+
+    const constraints = {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
+      video: videoEnabled ? {
+        width: { ideal: res.width, max: 320 },
+        height: { ideal: res.height, max: 240 },
+        frameRate: { ideal: fps, max: 30 }
+      } : false
+    };
+
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false
-      });
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
       this.updateMicrophoneHardware();
+      this.updateAllLocalVideoElements();
       return this.localStream;
-    } catch (error) {
-      console.error('Ошибка доступа к микрофону:', error);
-      return null;
+    } catch (err) {
+      console.warn('Не удалось получить комбинированный поток (камера+микрофон), пробуем только микрофон:', err);
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        this.updateMicrophoneHardware();
+        this.updateAllLocalVideoElements();
+        return this.localStream;
+      } catch (audioErr) {
+        console.error('Ошибка доступа к микрофону:', audioErr);
+        return null;
+      }
     }
   },
 
   /**
-   * Полный сброс текущих медиапотоков и повторный запрос разрешений на микрофон и камеру
+   * Обновление параметров видеопотока «на лету» без разрыва WebRTC соединений
+   * @param {string} resolutionStr - Строка вида "320x240" или "160x120"
+   * @param {number} fpsNum - Число от 10 до 30
+   * @param {boolean} isEnabled - Включена ли камера
    */
-  async requestUserMediaAndReset(includeVideo = true) {
-    // 1. Закрываем все текущие WebRTC соединения и останавливаем старые дорожки
-    this.disconnect();
-
-    // 2. Удаляем все ранее созданные теги <audio> для пиров
-    document.querySelectorAll('audio[id^="audio-"]').forEach(el => el.remove());
-
-    // 3. Запрашиваем доступ к микрофону и камере
-    if (includeVideo && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const combinedStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: true
-        });
-        // Освобождаем видеотрек, если видео не выводится в интерфейс игры
-        combinedStream.getVideoTracks().forEach(track => track.stop());
-        
-        // Оставляем аудиотрек в localStream
-        this.localStream = new MediaStream(combinedStream.getAudioTracks());
-      } catch (err) {
-        console.warn('Не удалось запросить видео/камеру, пробуем только микрофон:', err);
-        try {
-          this.localStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: false
-          });
-        } catch (audioErr) {
-          console.error('Ошибка доступа к микрофону:', audioErr);
-        }
-      }
-    } else {
-      await this.startMicrophone();
+  async updateVideoQuality(resolutionStr, fpsNum, isEnabled = true) {
+    if (resolutionStr) {
+      localStorage.setItem('webrtc_video_resolution', resolutionStr);
+    }
+    if (fpsNum) {
+      localStorage.setItem('webrtc_video_fps', String(fpsNum));
+    }
+    if (isEnabled !== undefined) {
+      localStorage.setItem('webrtc_video_enabled', String(isEnabled));
     }
 
-    this.updateMicrophoneHardware();
+    const res = this.getVideoResolution();
+    const fps = this.getVideoFPS();
+    const videoWanted = this.isVideoEnabled();
+
+    if (!this.localStream) {
+      return;
+    }
+
+    let videoTrack = this.localStream.getVideoTracks()[0];
+
+    if (!videoWanted) {
+      // Пользователь отключил видео
+      if (videoTrack) {
+        videoTrack.stop();
+        this.localStream.removeTrack(videoTrack);
+        // Заменяем трек в peerConnections на null
+        for (const pc of Object.values(this.peerConnections)) {
+          const senders = pc.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            videoSender.replaceTrack(null).catch(() => {});
+          }
+        }
+      }
+      this.updateAllLocalVideoElements();
+      return;
+    }
+
+    // Если камера включена
+    if (videoTrack && videoTrack.readyState === 'live') {
+      try {
+        // Применяем новые ограничения напрямую в активный трек браузера
+        await videoTrack.applyConstraints({
+          width: { ideal: res.width, max: 320 },
+          height: { ideal: res.height, max: 240 },
+          frameRate: { ideal: fps, max: 30 }
+        });
+        this.updateAllLocalVideoElements();
+      } catch (applyErr) {
+        console.warn('applyConstraints не поддерживается или вызвал ошибку, пересоздаем видеотрек:', applyErr);
+        await this.replaceLocalVideoTrack(res, fps);
+      }
+    } else {
+      // Видеотрека еще не было или он был остановлен — создаем новый и заменяем в соединениях
+      await this.replaceLocalVideoTrack(res, fps);
+    }
+  },
+
+  /**
+   * Создание нового видеотрека и замена во всех RTCPeerConnection без разрыва соединения
+   */
+  async replaceLocalVideoTrack(res, fps) {
+    try {
+      const videoStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: res.width, max: 320 },
+          height: { ideal: res.height, max: 240 },
+          frameRate: { ideal: fps, max: 30 }
+        },
+        audio: false
+      });
+
+      const newVideoTrack = videoStream.getVideoTracks()[0];
+      if (!newVideoTrack) return;
+
+      const oldTrack = this.localStream?.getVideoTracks()[0];
+      if (oldTrack) {
+        oldTrack.stop();
+        this.localStream.removeTrack(oldTrack);
+      }
+
+      if (this.localStream) {
+        this.localStream.addTrack(newVideoTrack);
+      } else {
+        this.localStream = videoStream;
+      }
+
+      // Обновляем трек во всех активных пиринговых соединениях
+      for (const pc of Object.values(this.peerConnections)) {
+        const senders = pc.getSenders();
+        const videoSender = senders.find(s => s.track?.kind === 'video' || (!s.track && s.kind === 'video'));
+        if (videoSender) {
+          await videoSender.replaceTrack(newVideoTrack).catch(e => console.warn('replaceTrack sender error:', e));
+        } else {
+          try {
+            pc.addTrack(newVideoTrack, this.localStream);
+          } catch (e) {}
+        }
+      }
+
+      this.updateAllLocalVideoElements();
+    } catch (err) {
+      console.error('Ошибка при создании/замене видеотрека:', err);
+    }
+  },
+
+  /**
+   * Подключение медиапотока к HTML-элементу <video>
+   * @param {HTMLVideoElement} videoEl - Элемент <video>
+   * @param {string} peerId - ID сокета игрока или 'local' / socket.id
+   * @param {boolean} isLocal - Является ли поток локальным
+   */
+  attachVideo(videoEl, peerId, isLocal = false) {
+    if (!videoEl) return;
+
+    let stream = null;
+    if (isLocal || peerId === 'local') {
+      stream = this.localStream;
+      videoEl.muted = true; // Локальное видео всегда глушится, чтобы не было эха
+    } else {
+      stream = this.remoteStreams[peerId] || null;
+      videoEl.muted = true; // Аудио воспроизводится через отдельный <audio> элемент для фазового контроля
+    }
+
+    videoEl.autoplay = true;
+    videoEl.playsInline = true;
+    videoEl.setAttribute('playsinline', '');
+    videoEl.setAttribute('webkit-playsinline', '');
+
+    if (stream && stream.getVideoTracks().length > 0) {
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+      }
+      videoEl.style.display = 'block';
+      const playPromise = videoEl.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    } else {
+      if (videoEl.srcObject) {
+        videoEl.srcObject = null;
+      }
+    }
+  },
+
+  /**
+   * Обновление всех локальных видеоэлементов в DOM
+   */
+  updateAllLocalVideoElements() {
+    const localVideos = document.querySelectorAll('video[data-player-video="local"], video[data-player-video="me"]');
+    localVideos.forEach(v => this.attachVideo(v, 'local', true));
+  },
+
+  /**
+   * Обновление видеоэлементов для конкретного пира
+   */
+  updatePeerVideoElements(peerId) {
+    const peerVideos = document.querySelectorAll(`video[data-player-video="${peerId}"]`);
+    peerVideos.forEach(v => this.attachVideo(v, peerId, false));
+  },
+
+  /**
+   * Сброс медиапотоков и повторный запрос
+   */
+  async requestUserMediaAndReset(includeVideo = true) {
+    this.disconnect();
+    document.querySelectorAll('audio[id^="audio-"]').forEach(el => el.remove());
+    await this.startMicrophone();
     return this.localStream;
   },
 
@@ -93,18 +296,11 @@ export const AudioModule = {
     }
   },
 
-  /**
-   * Прямое переключение микрофона
-   */
   toggleMicrophone(enabled) {
     this.userWantsMic = Boolean(enabled);
     this.updateMicrophoneHardware();
   },
 
-  /**
-   * Пользовательский клик по кнопке микрофона
-   * Возвращает статус переключения
-   */
   toggleUserMic() {
     if (!this.serverCanSpeak) {
       return { success: false, isMicOn: false, reason: 'server_muted' };
@@ -114,9 +310,6 @@ export const AudioModule = {
     return { success: true, isMicOn: this.userWantsMic };
   },
 
-  /**
-   * Обновляет приём аудио для всех аудиоэлементов игроков в соответствии с правилами фазы
-   */
   updateIncomingAudio() {
     const audioElements = document.querySelectorAll('audio[id^="audio-"]');
     audioElements.forEach(audioEl => {
@@ -124,15 +317,10 @@ export const AudioModule = {
       const isAllowedByServer = this.allowedSpeakers.includes(peerId);
       const isManuallyMuted = this.manuallyMutedPeers.has(peerId);
 
-      // Элемент глушится, если сервер запретил слушать этого игрока в данной фазе
-      // ИЛИ если пользователь сам заглушил его
       audioEl.muted = !isAllowedByServer || isManuallyMuted;
     });
   },
 
-  /**
-   * Локальное переключение звука конкретного игрока пользователем
-   */
   togglePeerMute(peerId) {
     if (this.manuallyMutedPeers.has(peerId)) {
       this.manuallyMutedPeers.delete(peerId);
@@ -157,10 +345,13 @@ export const AudioModule = {
       delete this.peerConnections[targetUserId];
     }
     delete this.iceCandidateQueues[targetUserId];
+    delete this.remoteStreams[targetUserId];
+
     const audioEl = document.getElementById(`audio-${targetUserId}`);
     if (audioEl) {
       audioEl.remove();
     }
+    this.updatePeerVideoElements(targetUserId);
   },
 
   async createPeerConnection(targetUserId, socket) {
@@ -174,19 +365,19 @@ export const AudioModule = {
     }
 
     const pc = new RTCPeerConnection({
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            {
-                urls: 'turn:openrelay.metered.ca:80',
-                username: 'openrelay',
-                credential: 'openrelay'
-            },
-            {
-                urls: 'turn:openrelay.metered.ca:443',
-                username: 'openrelay',
-                credential: 'openrelay'
-            }
-        ]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelay',
+          credential: 'openrelay'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelay',
+          credential: 'openrelay'
+        }
+      ]
     });
 
     this.peerConnections[targetUserId] = pc;
@@ -203,6 +394,20 @@ export const AudioModule = {
     }
 
     pc.ontrack = (event) => {
+      const remoteStream = event.streams && event.streams[0]
+        ? event.streams[0]
+        : new MediaStream([event.track]);
+
+      if (!this.remoteStreams[targetUserId]) {
+        this.remoteStreams[targetUserId] = remoteStream;
+      } else {
+        // Добавляем трек, если его еще нет
+        if (!this.remoteStreams[targetUserId].getTracks().some(t => t.id === event.track.id)) {
+          this.remoteStreams[targetUserId].addTrack(event.track);
+        }
+      }
+
+      // 1. Управление аудиоэлементом для пира
       let audioEl = document.getElementById(`audio-${targetUserId}`);
       if (!audioEl) {
         audioEl = document.createElement('audio');
@@ -211,15 +416,15 @@ export const AudioModule = {
         audioEl.playsInline = true;
         document.body.appendChild(audioEl);
       }
-      audioEl.srcObject = event.streams[0];
-      
+      if (audioEl.srcObject !== remoteStream) {
+        audioEl.srcObject = remoteStream;
+      }
       this.updateIncomingAudio();
 
       const playAudio = () => {
         audioEl.play().catch(err => {
-          console.warn('Автовоспроизведение ожидает взаимодействия пользователя:', err);
           const unlock = () => {
-            audioEl.play().catch(e => console.error('Ошибка воспроизведения:', e));
+            audioEl.play().catch(() => {});
             document.removeEventListener('click', unlock);
             document.removeEventListener('touchstart', unlock);
           };
@@ -227,8 +432,14 @@ export const AudioModule = {
           document.addEventListener('touchstart', unlock);
         });
       };
-
       playAudio();
+
+      // 2. Обновление видеоэлементов пира в DOM
+      this.updatePeerVideoElements(targetUserId);
+
+      if (typeof this.onRemoteStreamUpdate === 'function') {
+        this.onRemoteStreamUpdate(targetUserId, remoteStream);
+      }
     };
 
     pc.onicecandidate = (event) => {
@@ -306,6 +517,7 @@ export const AudioModule = {
     });
     this.peerConnections = {};
     this.iceCandidateQueues = {};
+    this.remoteStreams = {};
 
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {

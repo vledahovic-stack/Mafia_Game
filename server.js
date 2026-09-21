@@ -920,22 +920,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('signal', ({ target, signal }) => {
-        let roomId = socket.roomId;
-        if (!roomId) {
-            const found = Object.values(rooms).find(r => r.players && r.players.some(p => p.id === socket.id));
-            if (found) roomId = found.id;
-        }
-        const room = roomId ? rooms[roomId] : null;
-
-        // Валидация на стороне сервера: разрешено ли передавать аудио между данными игроками
-        if (room && room.gameState) {
-            const isAllowed = canPlayerHear(room, socket.id, target);
-            if (!isAllowed) {
-                // Блокируем несанкционированную маршрутизацию WebRTC сигнала
-                return;
-            }
-        }
-
+        if (!target || !signal) return;
         io.to(target).emit('signal', {
             from: socket.id,
             signal
