@@ -37,15 +37,15 @@
   ],
   "screenshots": [
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/splash.webp",
+      "sizes": "1080x1935",
+      "type": "image/webp",
       "form_factor": "wide"
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/splash.webp",
+      "sizes": "1080x1935",
+      "type": "image/webp"
     }
   ]
 }
